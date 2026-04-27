@@ -19,7 +19,6 @@ import {
   uid,
   formatDisplayDate,
   getLatestReport,
-  getWeekDateISO,
   MAX_REPORT_MILESTONES,
   normalizeMilestoneProgress,
   normalizeShownMilestoneIds,
@@ -219,45 +218,18 @@ function FullscreenPreview({
 
 function StatusTab({
   report,
-  allReports,
   onChange,
-  onSelectWeek,
-  onSetWeek,
 }: {
   report: WeeklyReport
-  allReports: WeeklyReport[]
   onChange: (p: Partial<WeeklyReport>) => void
-  onSelectWeek: (weekNumber: number) => void
-  onSetWeek: (weekNumber: number) => void
 }) {
-  const lastReport = allReports
-    .filter((r) => r.id !== report.id)
-    .sort((a, b) => b.weekNumber - a.weekNumber)[0] ?? null
-  const nextWeek = lastReport ? lastReport.weekNumber + 1 : null
-
   return (
     <div className="space-y-4 p-4">
-      <div>
-        <Select
-          label="Week Number"
-          value={String(report.weekNumber)}
-          onValueChange={(value) => value && onSelectWeek(Number(value))}
-        >
-          {allReports.map((weekReport) => (
-            <SelectItem key={weekReport.id} value={String(weekReport.weekNumber)}>
-              Week {weekReport.weekNumber}
-            </SelectItem>
-          ))}
-        </Select>
-        {nextWeek !== null && nextWeek !== report.weekNumber && (
-          <button
-            className="mt-1.5 text-xs text-primary hover:underline"
-            onClick={() => onSetWeek(nextWeek)}
-          >
-            Continue from Week {lastReport!.weekNumber} → set to Week {nextWeek}
-          </button>
-        )}
-      </div>
+      <Input
+        label="Week Number"
+        value={String(report.weekNumber)}
+        readOnly
+      />
       <Select
         label="Project Status"
         value={report.status}
@@ -615,15 +587,6 @@ export function ReportEditorPage({ store, navigate, projectId, reportId }: Props
     ? sortedReports[currentReportIndex + 1]
     : null
 
-  const handleSetWeek = (weekNumber: number) => {
-    updateReport({ weekNumber, reportDate: getWeekDateISO(project.startDate, weekNumber) })
-  }
-
-  const handleSelectWeek = (weekNumber: number) => {
-    const nextReport = sortedReports.find((candidate) => candidate.weekNumber === weekNumber)
-    if (!nextReport || nextReport.id === report.id) return
-    navigate({ name: 'report', projectId, reportId: nextReport.id })
-  }
 
   const handlePrint = () => window.print()
   const handleNavigateToReport = (targetReport: WeeklyReport | null) => {
@@ -676,10 +639,7 @@ export function ReportEditorPage({ store, navigate, projectId, reportId }: Props
             <TabsPanel value="status" keepMounted>
               <StatusTab
                 report={report}
-                allReports={sortedReports}
                 onChange={updateReport}
-                onSelectWeek={handleSelectWeek}
-                onSetWeek={handleSetWeek}
               />
             </TabsPanel>
             <TabsPanel value="milestones" keepMounted>
