@@ -53,15 +53,21 @@ export function useStore() {
 
   // Initial load from Supabase
   useEffect(() => {
-    supabase
-      .from('projects')
-      .select('data')
-      .order('updated_at', { ascending: false })
-      .then(({ data, error }) => {
+    const load = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('projects')
+          .select('data')
+          .order('updated_at', { ascending: false })
         if (error) console.error('Supabase load error:', error)
         if (data) setProjects(data.map((row) => normalizeProject(row.data as Project)))
+      } catch (err) {
+        console.error('Supabase connection error:', err)
+      } finally {
         setIsLoading(false)
-      })
+      }
+    }
+    load()
   }, [])
 
   const upsertProject = useCallback((project: Project) => {

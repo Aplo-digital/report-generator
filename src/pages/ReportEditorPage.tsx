@@ -336,19 +336,20 @@ function InsightsTab({
 
   return (
     <div className="p-4 space-y-3">
-      {report.insights.map((ins) => (
-        <div key={ins.id} className="flex gap-2 items-start">
-          <div className="flex-1">
-            <Textarea
-              value={ins.text}
-              onChange={(v) => update(ins.id, v)}
-              placeholder="Insight or observation…"
-              rows={2}
-            />
+      {report.insights.map((ins, idx) => (
+        <div key={ins.id} className="border border-border rounded-lg p-3 space-y-2">
+          <div className="flex items-start justify-between gap-2">
+            <Label className="text-xs font-semibold text-muted-foreground">INSIGHT #{idx + 1}</Label>
+            <Button variant="ghost" size="icon-sm" onClick={() => remove(ins.id)}>
+              <Trash2 className="w-4 h-4" />
+            </Button>
           </div>
-          <Button variant="ghost" size="icon-sm" className="mt-1" onClick={() => remove(ins.id)}>
-            <Trash2 className="w-4 h-4" />
-          </Button>
+          <Textarea
+            value={ins.text}
+            onChange={(v) => update(ins.id, v)}
+            placeholder="Insight or observation…"
+            rows={2}
+          />
         </div>
       ))}
       <Button variant="outline" size="sm" className="w-full" onClick={add}>
@@ -480,30 +481,32 @@ function ActionsTab({
 
   return (
     <div className="p-4 space-y-3">
-      {report.actionItems.map((item) => (
+      {report.actionItems.map((item, idx) => (
         <div key={item.id} className="border border-border rounded-lg p-3 space-y-2">
-          <div className="flex items-center gap-2">
-            <Checkbox
-              checked={item.completed}
-              onCheckedChange={(c) => update(item.id, { completed: c })}
-              size="sm"
-            />
-            <Input
-              placeholder="Action item description…"
-              value={item.text}
-              onChange={(e) => update(item.id, { text: e.target.value })}
-              containerClassName="flex-1"
-            />
+          <div className="flex items-start justify-between gap-2">
+            <Label className="text-xs font-semibold text-muted-foreground">ACTION #{idx + 1}</Label>
             <Button variant="ghost" size="icon-sm" onClick={() => remove(item.id)}>
               <Trash2 className="w-4 h-4" />
             </Button>
           </div>
-          <Input
-            placeholder="Responsible party…"
-            value={item.responsible}
-            onChange={(e) => update(item.id, { responsible: e.target.value })}
-            size="sm"
-          />
+          <div>
+            <Label className="text-xs mb-1">Action Item</Label>
+            <Textarea
+              value={item.text}
+              onChange={(v) => update(item.id, { text: v })}
+              placeholder="Describe the action item…"
+              rows={2}
+            />
+          </div>
+          <div>
+            <Label className="text-xs mb-1">Responsible</Label>
+            <Textarea
+              value={item.responsible}
+              onChange={(v) => update(item.id, { responsible: v })}
+              placeholder="Who is responsible?…"
+              rows={1}
+            />
+          </div>
         </div>
       ))}
       <Button variant="outline" size="sm" className="w-full" onClick={add}>

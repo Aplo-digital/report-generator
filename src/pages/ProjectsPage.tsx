@@ -463,7 +463,7 @@ export function ProjectsPage({ store, navigate }: Props) {
             <div
               key={project.id}
               onClick={() => navigate({ name: 'project', projectId: project.id })}
-              className="flex flex-row justify-between items-center h-auto p-6 text-left bg-surface hover:cursor-pointer rounded-xl border transition-all group"
+              className="flex flex-row justify-between items-start h-auto p-6 text-left bg-surface hover:cursor-pointer rounded-xl border transition-all group"
             >
               <div className="flex-col min-w-0 flex-1">
                 <div className="flex w-full mb-3">
@@ -487,17 +487,14 @@ export function ProjectsPage({ store, navigate }: Props) {
                   </span>
                 </div>
               </div>
-              <div className="flex items-center gap-1 shrink-0 ml-2">
-                <Button
-                  variant="secondary"
-                  size="icon-sm"
-                  className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+     <Button
+                  variant="ghost"
+                  size="icon"
+             
                   onClick={(e) => { e.stopPropagation(); setPendingDelete(project) }}
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
-               
-              </div>
             </div>
           ))}
         </div>

@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
 import type { Project, WeeklyReport } from '../types'
+import AploLogo from '../assets/Aplo.svg'
 import {
   formatSlideDate,
   formatWeekDate,
@@ -28,12 +29,12 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div
       style={{
-        fontSize: '11px',
+        fontSize: '12px',
         fontWeight: 700,
         letterSpacing: '1.5px',
-        color: '#9ca3af',
+        color: '#323232',
         textTransform: 'uppercase',
-        marginBottom: '10px',
+        marginBottom: '6px',
       }}
     >
       {children}
@@ -43,7 +44,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 function SectionHeader({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ marginBottom: '18px' }}>
+    <div style={{ marginBottom: '14px' }}>
       <SectionLabel>{children}</SectionLabel>
       <div style={{ height: '1px', background: '#e5e7eb' }} />
     </div>
@@ -112,6 +113,8 @@ function RisksTable({ risks }: { risks: WeeklyReport['risks'] }) {
     lineHeight: '1.55',
     color: '#374151',
     verticalAlign: 'top',
+    textAlign: 'left',
+    fontWeight: 'bold'
   }
   return (
     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -137,83 +140,92 @@ function RisksTable({ risks }: { risks: WeeklyReport['risks'] }) {
   )
 }
 
-function AchievementsList({ achievements }: { achievements: WeeklyReport['achievements'] }) {
+// ─── Action items table ───────────────────────────────────────────────────────
+
+function ActionItemsTable({ items }: { items: WeeklyReport['actionItems'] }) {
+  const cell: CSSProperties = {
+    padding: '10px 14px',
+    border: '1px solid #e5e7eb',
+    fontSize: '12px',
+    lineHeight: '1.55',
+    color: '#374151',
+    verticalAlign: 'top',
+    textAlign: 'left'
+  }
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-      {achievements.map((achievement) => (
-        <div
-          key={achievement.id}
-          style={{
-            display: 'flex',
-            gap: '10px',
-            paddingBottom: '10px',
-            borderBottom: '1px solid #f3f4f6',
-          }}
-        >
-          <div
-            style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '999px',
-              background: '#16a34a',
-              marginTop: '6px',
-              flexShrink: 0,
-            }}
-          />
-          <div style={{ fontSize: '13px', lineHeight: '1.55', color: '#374151' }}>{achievement.text}</div>
-        </div>
-      ))}
-    </div>
+    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <thead>
+        <tr>
+          <th style={{ ...cell, background: '#f9fafb', fontWeight: 600, fontSize: '11px' }}>
+            Action Item
+          </th>
+          <th style={{ ...cell, background: '#f9fafb', fontWeight: 600, fontSize: '11px', width: '30%' }}>
+            Responsible
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {items.map((item) => (
+          <tr key={item.id}>
+            <td style={cell}>{item.text}</td>
+            <td style={cell}>{item.responsible}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   )
 }
 
-// ─── Action items ─────────────────────────────────────────────────────────────
+// ─── Insights & Achievements ──────────────────────────────────────────────────
 
-function ActionRow({ item }: { item: WeeklyReport['actionItems'][number] }) {
+function StarIcon() {
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: '10px',
-        paddingBottom: '12px',
-        borderBottom: '1px solid #f3f4f6',
-      }}
+    <svg
+      width="14" height="14" viewBox="0 0 24 24" fill="#f59e0b" stroke="none"
+      style={{ flexShrink: 0, marginTop: '2px' }}
     >
-      <div
-        style={{
-          width: '7px',
-          height: '7px',
-          borderRadius: '50%',
-          background: item.completed ? '#16a34a' : 'transparent',
-          border: `1.5px solid ${item.completed ? '#16a34a' : '#9ca3af'}`,
-          marginTop: '4px',
-          flexShrink: 0,
-        }}
-      />
-      <div
-        style={{
-          flex: 1,
-          fontSize: '13px',
-          lineHeight: '1.5',
-          color: item.completed ? '#9ca3af' : '#1f2937',
-          textDecoration: item.completed ? 'line-through' : 'none',
-        }}
-      >
-        {item.text}
-      </div>
-      <div
-        style={{
-          fontSize: '12px',
-          color: '#6b7280',
-          fontWeight: 500,
-          flexShrink: 0,
-          minWidth: '70px',
-          textAlign: 'right',
-        }}
-      >
-        {item.responsible}
-      </div>
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+  )
+}
+
+function InfoIcon() {
+  return (
+    <svg
+      width="14" height="14" viewBox="0 0 24 24" fill="none"
+      stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      style={{ flexShrink: 0, marginTop: '2px' }}
+    >
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="16" x2="12" y2="12" />
+      <line x1="12" y1="8" x2="12.01" y2="8" />
+    </svg>
+  )
+}
+
+function InsightsAndAchievements({
+  insights,
+  achievements,
+}: {
+  insights: WeeklyReport['insights']
+  achievements: WeeklyReport['achievements']
+}) {
+  type Entry = { kind: 'achievement' | 'insight'; id: string; text: string }
+  const items: Entry[] = [
+    ...achievements.map((a) => ({ kind: 'achievement' as const, id: a.id, text: a.text })),
+    ...insights.map((i) => ({ kind: 'insight' as const, id: i.id, text: i.text })),
+  ]
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      {items.map((item) => (
+        <div
+          key={item.id}
+          style={{ display: 'flex', gap: '10px', paddingBottom: '10px', borderBottom: '1px solid #f3f4f6' }}
+        >
+          {item.kind === 'achievement' ? <StarIcon /> : <InfoIcon />}
+          <div style={{ fontSize: '14px', lineHeight: '1.55', color: '#374151' }}>{item.text}</div>
+        </div>
+      ))}
     </div>
   )
 }
@@ -221,7 +233,7 @@ function ActionRow({ item }: { item: WeeklyReport['actionItems'][number] }) {
 // ─── Gantt timeline ───────────────────────────────────────────────────────────
 
 const NAME_W = 180
-const WEEK_W = 200
+const WEEK_W = 230
 
 function getTimelineWindowStart(currentSprint: number, totalSprints: number): number {
   if (totalSprints <= TIMELINE_BLOCK_COUNT) return 0
@@ -232,7 +244,7 @@ function milestoneBarColor(progress: number): string {
   if (progress === 0) return '#e5e7eb'
   if (progress === 100) return '#16a34a'
   if (progress < 34) return '#d1d5db'
-  if (progress < 67) return '#9ca3af'
+  if (progress < 67) return '#323232'
   return '#4b5563'
 }
 
@@ -325,7 +337,7 @@ function TimelineChart({ tasks, milestoneProgress, projectStartDate, currentSpri
               style={{
                 width: `${NAME_W}px`,
                 flexShrink: 0,
-                fontSize: '13px',
+                fontSize: '14px',
                 color: '#374151',
                 paddingRight: '12px',
               }}
@@ -367,7 +379,7 @@ function TimelineChart({ tasks, milestoneProgress, projectStartDate, currentSpri
         style={{
           marginTop: '8px',
           fontSize: '10px',
-          color: '#9ca3af',
+          color: '#323232',
           textAlign: 'right',
           width: `${NAME_W + blocks.length * WEEK_W}px`,
         }}
@@ -410,76 +422,78 @@ export function ReportSlide({ project, report, id }: ReportSlideProps) {
     >
       {/* ── Header ── */}
       <div style={{ flexShrink: 0, marginBottom: '22px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <div
-              style={{
-                fontSize: '12px',
-                letterSpacing: '2px',
-                color: '#9ca3af',
-                textTransform: 'uppercase',
-                marginBottom: '8px',
-              }}
-            >
-              STATUS REPORT // {formatSlideDate(report.reportDate)} // WEEK {report.weekNumber}
-            </div>
-            <h1
-              style={{
-                fontSize: '36px',
-                fontWeight: 700,
-                margin: 0,
-                letterSpacing: '-1.5px',
-                lineHeight: 1.1,
-                color: '#111827',
-              }}
-            >
-              {project.name}
-            </h1>
+        {/* Row 1: subtitle + logos */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <div
+            style={{
+              fontSize: '14px',
+              letterSpacing: '2px',
+              color: '#0c0c0c',
+              textTransform: 'uppercase',
+            }}
+          >
+            STATUS REPORT <span style={{color: '#cccccc'}}> |</span>  {formatSlideDate(report.reportDate)}   <span style={{color: '#cccccc'}}> |</span> WEEK {report.weekNumber}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              {report.confidenceLevel != null && (
-                <span
-                  style={{
-                    background: '#1e293b',
-                    color: 'white',
-                    padding: '10px 20px',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    letterSpacing: '0.5px',
-                    borderRadius: '6px',
-                    whiteSpace: 'nowrap',
-
-                  }}
-                >
-                  Confidence {report.confidenceLevel}/5
-                </span>
-              )}
-              <span
-                style={{
-                  background: statusConfig.bg,
-                  color: 'white',
-                  padding: '10px 20px',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  letterSpacing: '2px',
-                  borderRadius: '6px',
-
-                }}
-              >
-                {statusConfig.label}
-              </span>
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+            <img src={AploLogo} alt="Aplo" style={{ height: '32px', objectFit: 'contain' }} />
             {project.clientLogo && (
               <img
                 src={project.clientLogo}
                 alt={project.clientName}
-                style={{ height: '68px', objectFit: 'contain' }}
+                style={{ height: '40px', objectFit: 'contain' }}
               />
             )}
           </div>
         </div>
-        <div style={{ height: '1px', background: '#e5e7eb', marginTop: '20px' }} />
+
+        {/* Row 2: project name + status chips */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <h1
+            style={{
+              fontSize: '32px',
+              fontWeight: 700,
+              margin: 0,
+              letterSpacing: '-1.5px',
+              lineHeight: 1.1,
+              color: '#111827',
+            }}
+          >
+            {project.name}
+          </h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+            {report.confidenceLevel != null && (
+              <span
+                style={{
+                  background: '#1e293b',
+                  color: 'white',
+                  padding: '9px 18px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  letterSpacing: '0.5px',
+                  borderRadius: '6px',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Confidence {report.confidenceLevel}/5
+              </span>
+            )}
+            <span
+              style={{
+                background: statusConfig.bg,
+                color: 'white',
+                padding: '9px 18px',
+                fontSize: '11px',
+                fontWeight: 700,
+                letterSpacing: '2px',
+                borderRadius: '6px',
+              }}
+            >
+              {statusConfig.label}
+            </span>
+          </div>
+        </div>
+
+        <div style={{ height: '1px', background: '#e5e7eb', marginTop: '16px' }} />
       </div>
 
       {/* ── Content grid: 3 cols × 2 rows ── */}
@@ -487,8 +501,8 @@ export function ReportSlide({ project, report, id }: ReportSlideProps) {
         style={{
           flex: 1,
           display: 'grid',
-          gridTemplateColumns: '320px 1fr 1fr 360px',
-          gridTemplateRows: '1fr 1fr',
+          gridTemplateColumns: '320px 3fr 3fr 4fr',
+          gridTemplateRows: '1.1fr 0.8fr',
           columnGap: '48px',
           rowGap: '24px',
           overflow: 'hidden',
@@ -501,7 +515,7 @@ export function ReportSlide({ project, report, id }: ReportSlideProps) {
             <MilestoneRow key={ms.id} name={ms.name} progress={report.milestoneProgress?.[ms.id] ?? 0} />
           ))}
           {hiddenMilestoneCount > 0 && (
-            <div style={{ fontSize: '13px', color: '#6b7280', fontWeight: 600 }}>
+            <div style={{ fontSize: '14px', color: '#6b7280', fontWeight: 600 }}>
               +{hiddenMilestoneCount} more
             </div>
           )}
@@ -513,65 +527,20 @@ export function ReportSlide({ project, report, id }: ReportSlideProps) {
           <RisksTable risks={report.risks} />
         </div>
 
-        {/* [3,1] Achievements */}
+        {/* [3,1] Action Items table — right of Risks */}
         <div style={{ gridColumn: 3, gridRow: 1, overflow: 'hidden' }}>
-          <SectionHeader>ACHIEVEMENTS</SectionHeader>
-          <AchievementsList achievements={report.achievements} />
+          <SectionHeader>ACTION ITEMS</SectionHeader>
+          <ActionItemsTable items={report.actionItems} />
         </div>
 
-        {/* [4,1] Action Items */}
+        {/* [4,1] Insights & Achievements — merged */}
         <div style={{ gridColumn: 4, gridRow: 1, overflow: 'hidden' }}>
-          <div style={{ marginBottom: '18px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '1.5px', color: '#9ca3af', textTransform: 'uppercase' }}>
-                ACTION ITEMS
-              </div>
-              <div style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '1.5px', color: '#9ca3af', textTransform: 'uppercase' }}>
-                RESPONSIBLE
-              </div>
-            </div>
-            <div style={{ height: '1px', background: '#e5e7eb' }} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            {report.actionItems.map((item) => (
-              <ActionRow key={item.id} item={item} />
-            ))}
-          </div>
+          <SectionHeader>INSIGHTS & ACHIEVEMENTS</SectionHeader>
+          <InsightsAndAchievements insights={report.insights} achievements={report.achievements} />
         </div>
 
-        {/* [1,2] Insights */}
-        <div style={{ gridColumn: 1, gridRow: 2, overflow: 'hidden' }}>
-          <SectionHeader>INSIGHTS</SectionHeader>
-          <ul
-            style={{
-              margin: 0,
-              paddingLeft: '14px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-              listStyleType: 'disc',
-              listStylePosition: 'outside',
-            }}
-          >
-            {report.insights.map((ins) => (
-              <li
-                key={ins.id}
-                style={{
-                  fontSize: '13px',
-                  lineHeight: '1.6',
-                  color: '#374151',
-                  paddingLeft: '2px',
-                  display: 'list-item',
-                }}
-              >
-                {ins.text}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* [2-4,2] Timeline */}
-        <div style={{ gridColumn: '2 / span 3', gridRow: 2, overflow: 'hidden' }}>
+        {/* [1-4,2] Timeline — full width */}
+        <div style={{ gridColumn: '1 / -1', gridRow: 2, overflow: 'hidden' }}>
           <SectionHeader>PROJECT PROGRESS / TIMELINE</SectionHeader>
           <TimelineChart
             tasks={visibleMilestones}
@@ -584,25 +553,6 @@ export function ReportSlide({ project, report, id }: ReportSlideProps) {
         </div>
       </div>
 
-      {/* ── Footer branding ── */}
-      <div
-        style={{
-          flexShrink: 0,
-          display: 'flex',
-          justifyContent: 'flex-end',
-          alignItems: 'center',
-          paddingTop: '10px',
-          marginTop: '8px',
-          borderTop: '1px solid #f3f4f6',
-        }}
-      >
-        <span style={{ fontWeight: 700, fontSize: '13px', color: '#6b7280', letterSpacing: '1px' }}>
-          aplo
-        </span>
-        <span style={{ fontSize: '18px', color: '#aa3bff', marginLeft: '3px', letterSpacing: '2px' }}>
-          •••
-        </span>
-      </div>
     </div>
   )
 }

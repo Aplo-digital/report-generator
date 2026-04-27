@@ -1,7 +1,7 @@
 import type { MilestoneDef, WeeklyReport } from './types'
 
 export const MAX_REPORT_MILESTONES = 6
-export const TIMELINE_BLOCK_COUNT = 6
+export const TIMELINE_BLOCK_COUNT = 7
 
 export function uid(): string {
   return Math.random().toString(36).slice(2, 10)
