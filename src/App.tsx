@@ -82,17 +82,22 @@ function App() {
       )}
 
       {/* Page content — scrollable for list pages, fixed for editor */}
-      {view.name === 'projects' && (
+      {store.isLoading && (
+        <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+          Loading…
+        </div>
+      )}
+      {!store.isLoading && view.name === 'projects' && (
         <div className="flex-1 min-h-0 overflow-auto">
           <ProjectsPage store={store} navigate={navigate} />
         </div>
       )}
-      {view.name === 'project' && (
+      {!store.isLoading && view.name === 'project' && (
         <div className="flex-1 min-h-0 overflow-auto">
           <ProjectPage store={store} navigate={navigate} projectId={view.projectId} />
         </div>
       )}
-      {view.name === 'report' && (
+      {!store.isLoading && view.name === 'report' && (
         <div className="flex-1 min-h-0 overflow-hidden">
           <ReportEditorPage
             store={store}

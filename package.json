@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@aplo/ui": "^0.3.0",
+    "@supabase/supabase-js": "^2.104.1",
+    "lucide-react": "^0.460.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },

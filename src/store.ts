@@ -1,56 +1,12 @@
-import { useReducer, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { createClient } from '@supabase/supabase-js'
 import type { Project, WeeklyReport } from './types'
 import { getLatestReport, normalizeMilestoneProgress, normalizeShownMilestoneIds } from './utils'
 
-interface State {
-  projects: Project[]
-}
-
-type Action =
-  | { type: 'UPSERT_PROJECT'; project: Project }
-  | { type: 'DELETE_PROJECT'; id: string }
-  | { type: 'UPSERT_REPORT'; projectId: string; report: WeeklyReport }
-  | { type: 'DELETE_REPORT'; projectId: string; reportId: string }
-
-function reducer(state: State, action: Action): State {
-  switch (action.type) {
-    case 'UPSERT_PROJECT': {
-      const exists = state.projects.some((p) => p.id === action.project.id)
-      return {
-        projects: exists
-          ? state.projects.map((p) => (p.id === action.project.id ? action.project : p))
-          : [...state.projects, action.project],
-      }
-    }
-    case 'DELETE_PROJECT':
-      return { projects: state.projects.filter((p) => p.id !== action.id) }
-    case 'UPSERT_REPORT':
-      return {
-        projects: state.projects.map((p) => {
-          if (p.id !== action.projectId) return p
-          const exists = p.reports.some((r) => r.id === action.report.id)
-          return {
-            ...p,
-            reports: exists
-              ? p.reports.map((r) => (r.id === action.report.id ? action.report : r))
-              : [...p.reports, action.report],
-          }
-        }),
-      }
-    case 'DELETE_REPORT':
-      return {
-        projects: state.projects.map((p) =>
-          p.id === action.projectId
-            ? { ...p, reports: p.reports.filter((r) => r.id !== action.reportId) }
-            : p
-        ),
-      }
-    default:
-      return state
-  }
-}
-
-const STORAGE_KEY = 'aplo-status-reporter'
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL as string,
+  import.meta.env.VITE_SUPABASE_ANON_KEY as string,
+)
 
 function normalizeProject(project: Project): Project {
   const milestones = project.milestones ?? []
@@ -72,37 +28,78 @@ function normalizeProject(project: Project): Project {
   }
 }
 
-function loadState(): State {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) {
-      const parsed = JSON.parse(raw) as State
-      return {
-        projects: (parsed.projects ?? []).map((project) => normalizeProject(project)),
-      }
-    }
-  } catch {
-    // Ignore invalid persisted state and fall back to an empty project list.
-  }
-  return { projects: [] }
+function dbUpsertProject(project: Project): void {
+  supabase
+    .from('projects')
+    .upsert({ id: project.id, data: project, updated_at: new Date().toISOString() })
+    .then(({ error }) => { if (error) console.error('Supabase upsert error:', error) })
+}
+
+function dbDeleteProject(id: string): void {
+  supabase
+    .from('projects')
+    .delete()
+    .eq('id', id)
+    .then(({ error }) => { if (error) console.error('Supabase delete error:', error) })
 }
 
 export function useStore() {
-  const [state, dispatch] = useReducer(reducer, undefined, loadState)
+  const [projects, setProjects] = useState<Project[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const projectsRef = useRef<Project[]>([])
 
+  // Keep ref in sync so callbacks don't need projects in their dep array
+  useEffect(() => { projectsRef.current = projects }, [projects])
+
+  // Initial load from Supabase
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-  }, [state])
+    supabase
+      .from('projects')
+      .select('data')
+      .order('updated_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (error) console.error('Supabase load error:', error)
+        if (data) setProjects(data.map((row) => normalizeProject(row.data as Project)))
+        setIsLoading(false)
+      })
+  }, [])
 
-  return {
-    projects: state.projects,
-    upsertProject: (project: Project) => dispatch({ type: 'UPSERT_PROJECT', project }),
-    deleteProject: (id: string) => dispatch({ type: 'DELETE_PROJECT', id }),
-    upsertReport: (projectId: string, report: WeeklyReport) =>
-      dispatch({ type: 'UPSERT_REPORT', projectId, report }),
-    deleteReport: (projectId: string, reportId: string) =>
-      dispatch({ type: 'DELETE_REPORT', projectId, reportId }),
-  }
+  const upsertProject = useCallback((project: Project) => {
+    setProjects((prev) => {
+      const exists = prev.some((p) => p.id === project.id)
+      return exists
+        ? prev.map((p) => (p.id === project.id ? project : p))
+        : [...prev, project]
+    })
+    dbUpsertProject(project)
+  }, [])
+
+  const deleteProject = useCallback((id: string) => {
+    setProjects((prev) => prev.filter((p) => p.id !== id))
+    dbDeleteProject(id)
+  }, [])
+
+  const upsertReport = useCallback((projectId: string, report: WeeklyReport) => {
+    const current = projectsRef.current.find((p) => p.id === projectId)
+    if (!current) return
+    const exists = current.reports.some((r) => r.id === report.id)
+    const reports = exists
+      ? current.reports.map((r) => (r.id === report.id ? report : r))
+      : [...current.reports, report]
+    const updated = { ...current, reports }
+    setProjects((prev) => prev.map((p) => (p.id === projectId ? updated : p)))
+    dbUpsertProject(updated)
+  }, [])
+
+  const deleteReport = useCallback((projectId: string, reportId: string) => {
+    const current = projectsRef.current.find((p) => p.id === projectId)
+    if (!current) return
+    const updated = { ...current, reports: current.reports.filter((r) => r.id !== reportId) }
+    setProjects((prev) => prev.map((p) => (p.id === projectId ? updated : p)))
+    dbUpsertProject(updated)
+  }, [])
+
+  return { projects, isLoading, upsertProject, deleteProject, upsertReport, deleteReport }
 }
 
 export type Store = ReturnType<typeof useStore>
