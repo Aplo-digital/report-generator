@@ -94,22 +94,31 @@ function NavControls({ session }: { session: Session }) {
 
 // ─── Main app ─────────────────────────────────────────────────────────────────
 
+// Supabase puts `type=recovery` in the URL hash after redirecting from the email link.
+// We read it synchronously so we never miss the recovery intent even if the
+// PASSWORD_RECOVERY event fires before the component subscribes to onAuthStateChange.
+function isRecoveryRedirect() {
+  const params = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+  const recovery = params.get('type') === 'recovery'
+  if (recovery) history.replaceState(null, '', window.location.pathname)
+  return recovery
+}
+
 function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [unauthorizedEmail, setUnauthorizedEmail] = useState<string | null>(null)
-  const [passwordRecovery, setPasswordRecovery] = useState(false)
+  const [passwordRecovery, setPasswordRecovery] = useState(isRecoveryRedirect)
   const [view, setView] = useState<NavView>({ name: 'projects' })
   const store = useStore()
   const navigate = (v: NavView) => setView(v)
 
   useEffect(() => {
-    // onAuthStateChange fires INITIAL_SESSION on mount with the current session,
-    // so getSession() is not needed and would race with PASSWORD_RECOVERY events.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
         setPasswordRecovery(true)
-      } else {
+      } else if (event === 'USER_UPDATED' || event === 'SIGNED_OUT') {
+        // Clear recovery mode once password is saved or user signs out
         setPasswordRecovery(false)
       }
       setSession(session)
