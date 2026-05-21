@@ -1,5 +1,5 @@
 // In dev, requests hit the Vite proxy (/api/float → https://api.float.com).
-// In production, the same path is handled by api/float/[...path].ts (Vercel serverless).
+// In production, the same path is handled by api/float/[...path].js (Vercel serverless).
 const FLOAT_BASE = '/api/float/v3'
 
 export interface FloatProject {
@@ -18,17 +18,20 @@ export interface FloatClient {
   name: string
 }
 
-export function isFloatConfigured(): boolean {
-  return !!(import.meta.env.VITE_FLOAT_API_KEY as string)
-}
-
 async function floatGet<T>(path: string): Promise<T> {
   const res = await fetch(`${FLOAT_BASE}${path}`)
+  const contentType = res.headers.get('content-type') ?? ''
+  const body = await res.text()
+
   if (!res.ok) {
-    const body = await res.text().catch(() => '')
     throw new Error(`Float API ${res.status}: ${body || res.statusText}`)
   }
-  return res.json() as Promise<T>
+
+  if (!contentType.includes('application/json')) {
+    throw new Error('Float API proxy returned a non-JSON response')
+  }
+
+  return JSON.parse(body) as T
 }
 
 export async function fetchFloatProjects(): Promise<FloatProject[]> {

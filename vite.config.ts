@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd())
+  const env = loadEnv(mode, process.cwd(), '')
   return {
     plugins: [react(), tailwindcss()],
     server: {
@@ -14,7 +14,7 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api\/float/, ''),
           headers: {
-            Authorization: `Bearer ${env.VITE_FLOAT_API_KEY ?? ''}`,
+            Authorization: `Bearer ${env.FLOAT_API_KEY ?? env.VITE_FLOAT_API_KEY ?? ''}`,
             'User-Agent': 'project-timeline/1.0',
           },
         },

@@ -5,7 +5,7 @@ import { InputGroup } from '../components/InputGroup'
 import type { NavView, Project, MilestoneDef, SprintLength } from '../types'
 import type { Store } from '../store'
 import { uid, todayISO, addDaysISO, formatDisplayDate } from '../utils'
-import { isFloatConfigured, fetchFloatProjects, fetchFloatClients } from '../float'
+import { fetchFloatProjects, fetchFloatClients } from '../float'
 import type { FloatProject, FloatClient } from '../float'
 
 interface Props {
@@ -46,8 +46,6 @@ function FloatPrefillSection({ onChange }: { onChange: (patch: Partial<Project>)
   const [error, setError] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const configured = isFloatConfigured()
-
   const load = async () => {
     setState('loading')
     setSearch('')
@@ -97,8 +95,6 @@ function FloatPrefillSection({ onChange }: { onChange: (patch: Partial<Project>)
     const q = search.toLowerCase()
     return p.name.toLowerCase().includes(q) || clientName.toLowerCase().includes(q)
   })
-
-  if (!configured) return null
 
   // ── Card — fixed height in every state, dropdown floats below ──
   return (
