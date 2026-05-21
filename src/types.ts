@@ -72,5 +72,5 @@ export interface Project {
 
 export type NavView =
   | { name: 'projects' }
-  | { name: 'project'; projectId: string }
+  | { name: 'project'; projectId: string; tab?: 'reports' | 'milestones' | 'settings' }
   | { name: 'report'; projectId: string; reportId: string }

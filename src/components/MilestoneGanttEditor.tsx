@@ -11,7 +11,7 @@ const HEADER_H = 40
 const TEAL = '#0d9488'
 const GHOST_COLOR = '#6b7280'
 
-const colorFor = (_idx: number) => TEAL
+const colorFor = () => TEAL
 
 type DragOp =
   | { kind: 'create'; id: string; anchor: number; current: number }
@@ -63,7 +63,6 @@ export function MilestoneGanttEditor({ milestones, onChange }: Props) {
         onChange(milestones.map((m) => (m.id === drag.id ? { ...m, endWeek: newEnd } : m)))
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [drag, milestones, onChange],
   )
 
@@ -77,7 +76,6 @@ export function MilestoneGanttEditor({ milestones, onChange }: Props) {
       }
       setDrag(null)
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [drag, milestones, onChange],
   )
 
@@ -155,12 +153,12 @@ export function MilestoneGanttEditor({ milestones, onChange }: Props) {
 
           {/* ── Header ── */}
           <div
-            className="flex border-b border-border bg-gray-100"
+            className="flex border-b border-border bg-muted/55"
             style={{ height: HEADER_H }}
           >
             <div
               style={{ width: NAME_W, flexShrink: 0 }}
-              className="sticky left-0 z-10 bg-muted/20 bg-gray-100 border-r border-border flex items-center px-3"
+              className="sticky left-0 z-10 bg-muted border-r border-border flex items-center px-3"
             >
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Milestone
@@ -188,7 +186,7 @@ export function MilestoneGanttEditor({ milestones, onChange }: Props) {
           )}
 
           {milestones.map((ms, idx) => {
-            const color = colorFor(idx)
+            const color = colorFor()
             const placed = ms.startWeek !== null && ms.endWeek !== null
             const isCreating = drag?.kind === 'create' && drag.id === ms.id
             const isDraggingRow = rowDrag?.from === idx

@@ -267,19 +267,24 @@ function MilestonesTab({
   isLatestReport,
   onSetProgress,
   onToggleShown,
+  onEditMilestones,
 }: {
   project: Project
   report: WeeklyReport
   isLatestReport: boolean
   onSetProgress: (id: string, value: number) => void
   onToggleShown: (id: string, shown: boolean) => void
+  onEditMilestones: () => void
 }) {
   const shownCount = report.shownMilestoneIds.length
 
   if (project.milestones.length === 0) {
     return (
-      <div className="p-4 text-sm text-muted-foreground">
-        No milestones defined for this project yet. Add them in the project's Milestones tab.
+      <div className="p-4 space-y-3 text-sm text-muted-foreground">
+        <p>No milestones defined for this project yet.</p>
+        <Button variant="ghost" size="sm" onClick={onEditMilestones}>
+          Edit milestones
+        </Button>
       </div>
     )
   }
@@ -314,6 +319,9 @@ function MilestonesTab({
           ? 'This report sets the live milestone progress that new reports will inherit.'
           : 'This report keeps its own snapshot. Changing it here will not affect newer reports.'}
       </p>
+      <Button variant="ghost" size="sm" onClick={onEditMilestones}>
+        Edit milestones
+      </Button>
     </div>
   )
 }
@@ -652,6 +660,7 @@ export function ReportEditorPage({ store, navigate, projectId, reportId }: Props
                 isLatestReport={isLatestReport}
                 onSetProgress={handleMilestoneProgressChange}
                 onToggleShown={handleMilestoneShownToggle}
+                onEditMilestones={() => navigate({ name: 'project', projectId, tab: 'milestones' })}
               />
             </TabsPanel>
             <TabsPanel value="insights" keepMounted>

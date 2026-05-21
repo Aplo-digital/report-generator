@@ -15,6 +15,7 @@ function normalizeProject(project: Project): Project {
   return {
     ...project,
     milestones,
+    timelineWindowStart: Math.max(1, project.timelineWindowStart ?? 1),
     currentMilestoneProgress: normalizeMilestoneProgress(
       milestones,
       project.currentMilestoneProgress ?? latestReport?.milestoneProgress,

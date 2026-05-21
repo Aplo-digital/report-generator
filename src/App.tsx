@@ -76,7 +76,7 @@ function NavControls({ session }: { session: Session }) {
 
   useEffect(() => {
     setMotionEnabled(false)
-  }, [])
+  }, [setMotionEnabled])
 
   return (
     <div className="flex items-center gap-4">
@@ -233,7 +233,7 @@ function App() {
       )}
       {!store.isLoading && view.name === 'project' && (
         <div className="flex-1 min-h-0 overflow-auto">
-          <ProjectPage store={store} navigate={navigate} projectId={view.projectId} />
+          <ProjectPage store={store} navigate={navigate} projectId={view.projectId} initialTab={view.tab} />
         </div>
       )}
       {!store.isLoading && view.name === 'report' && (

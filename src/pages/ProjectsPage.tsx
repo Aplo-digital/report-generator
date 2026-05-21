@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Button, Container, Input, PageHeader, Select, SelectItem } from '@aplo/ui'
 import { Plus, Calendar, FileText, Trash2, X, Database, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { InputGroup } from '../components/InputGroup'
+import { MilestoneGanttEditor } from '../components/MilestoneGanttEditor'
 import type { NavView, Project, MilestoneDef, SprintLength } from '../types'
 import type { Store } from '../store'
 import { uid, todayISO, addDaysISO, formatDisplayDate } from '../utils'
@@ -27,7 +28,7 @@ function createProject(): Project {
     sprintLength: 1,
     milestones: [],
     currentMilestoneProgress: {},
-    timelineWindowStart: 0,
+    timelineWindowStart: 1,
     reports: [],
     floatProjectId: null,
   }
@@ -179,7 +180,7 @@ function FloatPrefillSection({ onChange }: { onChange: (patch: Partial<Project>)
 
       {/* Floating dropdown — absolutely positioned, no layout shift */}
       {state === 'picking' && (
-        <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-border bg-white shadow-xl overflow-hidden">
+        <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-border bg-surface text-foreground shadow-xl overflow-hidden">
           <div className="max-h-56 overflow-y-auto divide-y divide-border/50">
             {filtered.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">No projects match "{search}"</p>
@@ -191,7 +192,7 @@ function FloatPrefillSection({ onChange }: { onChange: (patch: Partial<Project>)
                     key={p.project_id}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => handleSelect(p)}
-                    className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted/50 transition-colors"
+                    className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none transition-colors"
                   >
                     <span className="text-sm font-medium truncate">{p.name}</span>
                     {client && <span className="text-xs text-muted-foreground ml-4 shrink-0">{client}</span>}
@@ -244,7 +245,7 @@ function createDummyProject(): Project {
     sprintLength: 1,
     milestones,
     currentMilestoneProgress: Object.fromEntries(milestones.map((milestone) => [milestone.id, 0])),
-    timelineWindowStart: 0,
+    timelineWindowStart: 1,
     reports: [],
   }
 }
@@ -284,15 +285,6 @@ function ProjectSetupModal({
   onBack: () => void
   onCancel: () => void
 }) {
-  const updateMilestone = (id: string, patch: Partial<MilestoneDef>) =>
-    onChange({ milestones: draft.milestones.map((m) => (m.id === id ? { ...m, ...patch } : m)) })
-
-  const addMilestone = () =>
-    onChange({ milestones: [...draft.milestones, { id: uid(), name: '', startWeek: 0, endWeek: 1 }] })
-
-  const removeMilestone = (id: string) =>
-    onChange({ milestones: draft.milestones.filter((m) => m.id !== id) })
-
   const stepTitles: Record<1 | 2, string> = {
     1: 'Capture the essentials before you save',
     2: 'Add milestones to the timeline',
@@ -308,7 +300,7 @@ function ProjectSetupModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-surface rounded-2xl border shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-surface rounded-2xl border shadow-xl w-full max-w-6xl max-h-[94vh] overflow-y-auto">
         <div className="p-6 sm:p-8">
           <div className="mb-8">
             <div className="flex items-start justify-between gap-4">
@@ -336,8 +328,8 @@ function ProjectSetupModal({
                       value={draft.name}
                       onChange={(e) => onChange({ name: e.target.value })}
                       placeholder="Design System Mobilisation"
+                      error={errors.name}
                     />
-                    {errors.name && <p className="mt-1 text-xs text-destructive">{errors.name}</p>}
                   </div>
                   <div>
                     <Input
@@ -345,10 +337,8 @@ function ProjectSetupModal({
                       value={draft.clientName}
                       onChange={(e) => onChange({ clientName: e.target.value })}
                       placeholder="Flinders University"
+                      error={errors.clientName}
                     />
-                    {errors.clientName && (
-                      <p className="mt-1 text-xs text-destructive">{errors.clientName}</p>
-                    )}
                   </div>
                 </div>
               </section>
@@ -363,6 +353,7 @@ function ProjectSetupModal({
                       onChange={(e) => onChange({ description: e.target.value })}
                       placeholder="Brief description of the project..."
                       rows={3}
+                      aria-invalid={!!errors.description}
                       className="w-full rounded-md border border-border bg-muted/40 px-3 py-2 text-sm resize-y outline-none transition-[border-color,box-shadow] duration-200 focus-visible:border-primary focus-visible:shadow-[0_0_0_3px_hsl(179_100%_21%/0.12)] placeholder:text-muted-foreground text-foreground"
                     />
                     {errors.description && (
@@ -376,6 +367,7 @@ function ProjectSetupModal({
                       onChange={(e) => onChange({ goal: e.target.value })}
                       placeholder="What does success look like?"
                       rows={3}
+                      aria-invalid={!!errors.goal}
                       className="w-full rounded-md border border-border bg-muted/40 px-3 py-2 text-sm resize-y outline-none transition-[border-color,box-shadow] duration-200 focus-visible:border-primary focus-visible:shadow-[0_0_0_3px_hsl(179_100%_21%/0.12)] placeholder:text-muted-foreground text-foreground"
                     />
                     {errors.goal && <p className="mt-1 text-xs text-destructive">{errors.goal}</p>}
@@ -397,10 +389,8 @@ function ProjectSetupModal({
                       type="date"
                       value={draft.startDate}
                       onChange={(e) => onChange({ startDate: e.target.value })}
+                      error={errors.startDate}
                     />
-                    {errors.startDate && (
-                      <p className="mt-1 text-xs text-destructive">{errors.startDate}</p>
-                    )}
                   </div>
                   <div>
                     <Input
@@ -408,8 +398,8 @@ function ProjectSetupModal({
                       type="date"
                       value={draft.endDate}
                       onChange={(e) => onChange({ endDate: e.target.value })}
+                      error={errors.endDate}
                     />
-                    {errors.endDate && <p className="mt-1 text-xs text-destructive">{errors.endDate}</p>}
                   </div>
                   <div className="sm:col-span-2">
                     <Select
@@ -435,53 +425,15 @@ function ProjectSetupModal({
                 label="Gantt view starts at"
                 leading="Week"
                 type="number"
-                min={0}
+                min={1}
                 value={draft.timelineWindowStart}
-                onChange={(e) => onChange({ timelineWindowStart: Number(e.target.value) })}
+                onChange={(e) => onChange({ timelineWindowStart: Math.max(1, Number(e.target.value) || 1) })}
                 description="The 6-block Gantt snapshot on each report starts from this week number."
               />
-              <div className="space-y-2">
-                {draft.milestones.map((ms) => (
-                  <div key={ms.id} className="relative border border-border rounded-lg p-5 space-y-3">
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      className="absolute top-4 right-4"
-                      onClick={() => removeMilestone(ms.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                    <Input
-                      placeholder="Milestone name…"
-                      value={ms.name}
-                      onChange={(e) => updateMilestone(ms.id, { name: e.target.value })}
-                      containerClassName="pr-10"
-                    />
-                    <div className="grid grid-cols-2 gap-3">
-                      <InputGroup
-                        label="Start"
-                        leading="Week"
-                        type="number"
-                        min={0}
-                        value={ms.startWeek ?? ''}
-                        onChange={(e) => updateMilestone(ms.id, { startWeek: Number(e.target.value) })}
-                      />
-                      <InputGroup
-                        label="End"
-                        leading="Week"
-                        type="number"
-                        min={0}
-                        value={ms.endWeek ?? ''}
-                        onChange={(e) => updateMilestone(ms.id, { endWeek: Number(e.target.value) })}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <Button variant="outline" size="sm" className="w-full" onClick={addMilestone}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Milestone
-              </Button>
+              <MilestoneGanttEditor
+                milestones={draft.milestones}
+                onChange={(milestones) => onChange({ milestones })}
+              />
             </div>
           )}
 

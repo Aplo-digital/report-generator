@@ -56,6 +56,8 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 function MilestoneRow({ name, progress }: { name: string; progress: number }) {
   const done = progress === 100
   const color = done ? '#16a34a' : '#1f2937'
+  const label = name.trim() || 'Milestone'
+  const isFallbackLabel = !name.trim()
 
   return (
     <div
@@ -64,7 +66,9 @@ function MilestoneRow({ name, progress }: { name: string; progress: number }) {
         marginBottom: '10px',
       }}
     >
-      <div style={{ fontSize: '14px', color: '#1f2937', marginBottom: '6px' }}>{name}</div>
+      <div style={{ fontSize: '14px', color: isFallbackLabel ? '#9ca3af' : '#1f2937', marginBottom: '6px' }}>
+        {label}
+      </div>
       {/*
         paddingTop gives the arrow room above the track so it isn't clipped.
         paddingInline keeps the arrow within bounds at 0% and 100%.
@@ -328,6 +332,8 @@ function TimelineChart({ tasks, milestoneProgress, projectStartDate, currentSpri
       {tasks.map((task) => {
         const startWeek = task.startWeek ?? 0
         const endWeek = task.endWeek ?? 1
+        const taskLabel = task.name.trim() || 'Milestone'
+        const isFallbackLabel = !task.name.trim()
         const windowEnd = windowStart + blocks.length - 1
         const isVisibleInWindow = !(endWeek < windowStart || startWeek > windowEnd)
 
@@ -345,11 +351,11 @@ function TimelineChart({ tasks, milestoneProgress, projectStartDate, currentSpri
                 width: `${NAME_W}px`,
                 flexShrink: 0,
                 fontSize: '14px',
-                color: '#374151',
+                color: isFallbackLabel ? '#9ca3af' : '#374151',
                 paddingRight: '12px',
               }}
             >
-              {task.name}
+              {taskLabel}
             </div>
             <div style={{ position: 'relative', display: 'flex', height: '100%' }}>
               {blocks.map(({ blockNum }, idx) => (

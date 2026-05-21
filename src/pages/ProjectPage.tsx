@@ -12,7 +12,7 @@ import {
   TabsPanel,
   PageHeader,
 } from '@aplo/ui'
-import { Trash2, ChevronRight, Plus } from 'lucide-react'
+import { Trash2, ChevronRight, Plus, RefreshCw } from 'lucide-react'
 import type { NavView, Project, WeeklyReport, SprintLength } from '../types'
 import type { Store } from '../store'
 import {
@@ -27,11 +27,13 @@ import {
 } from '../utils'
 import { InputGroup } from '../components/InputGroup'
 import { MilestoneGanttEditor } from '../components/MilestoneGanttEditor'
+import { fetchFloatClients, fetchFloatProject } from '../float'
 
 interface Props {
   store: Store
   navigate: (v: NavView) => void
   projectId: string
+  initialTab?: 'reports' | 'milestones' | 'settings'
 }
 
 const STATUS_LABELS = { 'on-track': 'On Track', 'at-risk': 'At Risk', delayed: 'Delayed' } as const
@@ -51,9 +53,9 @@ function MilestonesTab({
           label="Gantt view starts at"
           leading="Week"
           type="number"
-          min={0}
+          min={1}
           value={project.timelineWindowStart}
-          onChange={(e) => onUpdate({ timelineWindowStart: Number(e.target.value) })}
+          onChange={(e) => onUpdate({ timelineWindowStart: Math.max(1, Number(e.target.value) || 1) })}
           description="The 6-block Gantt snapshot on each report starts from this week number."
         />
       </div>
@@ -92,19 +94,58 @@ function reportsChanged(a: WeeklyReport[], b: WeeklyReport[]) {
   return JSON.stringify(a) !== JSON.stringify(b)
 }
 
+function FloatRefreshConfirmModal({
+  isLoading,
+  error,
+  onConfirm,
+  onCancel,
+}: {
+  isLoading: boolean
+  error: string | null
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+      <div className="w-full max-w-lg rounded-lg border border-border bg-surface p-6 shadow-2xl sm:p-8">
+        <h2 className="text-xl font-semibold">Refresh settings from Float?</h2>
+        <p className="mt-3 text-sm text-muted-foreground">
+          This will replace your current project name, client, description, and dates with the
+          attached Float project settings.
+        </p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Your milestones will stay as they are, though their dates may need to be updated manually.
+        </p>
+        {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
+        <div className="mt-8 flex justify-end gap-2">
+          <Button variant="outline" onClick={onCancel} disabled={isLoading}>
+            Cancel
+          </Button>
+          <Button onClick={onConfirm} disabled={isLoading}>
+            {isLoading && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
+            {isLoading ? 'Refreshing' : 'Refresh from Float'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
-export function ProjectPage({ store, navigate, projectId }: Props) {
+export function ProjectPage({ store, navigate, projectId, initialTab = 'reports' }: Props) {
   const project = store.projects.find((p) => p.id === projectId)
 
   const [local, setLocal] = useState<Project | null>(project ? { ...project, reports: normalizeReports(project) } : null)
   const [reportSortDirection, setReportSortDirection] = useState<'asc' | 'desc'>('desc')
+  const [isFloatRefreshOpen, setIsFloatRefreshOpen] = useState(false)
+  const [isFloatRefreshing, setIsFloatRefreshing] = useState(false)
+  const [floatRefreshError, setFloatRefreshError] = useState<string | null>(null)
   const isFirst = useRef(true)
 
   useEffect(() => {
     if (!project) {
-      // This page keeps a local editable draft, so we intentionally clear it when the route project disappears.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+      // This page keeps a local editable draft, so clear it when the route project disappears.
       setLocal(null)
       return
     }
@@ -181,6 +222,36 @@ export function ProjectPage({ store, navigate, projectId }: Props) {
     navigate({ name: 'projects' })
   }
 
+  const handleRefreshFromFloat = async () => {
+    if (!local.floatProjectId) return
+
+    setIsFloatRefreshing(true)
+    setFloatRefreshError(null)
+    try {
+      const [floatProject, floatClients] = await Promise.all([
+        fetchFloatProject(local.floatProjectId),
+        fetchFloatClients(),
+      ])
+      const floatClientName =
+        floatProject.client_id == null
+          ? ''
+          : floatClients.find((client) => client.client_id === floatProject.client_id)?.name ?? ''
+
+      update({
+        name: floatProject.name,
+        clientName: floatClientName,
+        description: floatProject.description ?? '',
+        startDate: floatProject.start_date ?? local.startDate,
+        endDate: floatProject.end_date ?? local.endDate,
+      })
+      setIsFloatRefreshOpen(false)
+    } catch (err) {
+      setFloatRefreshError(err instanceof Error ? err.message : 'Could not refresh from Float.')
+    } finally {
+      setIsFloatRefreshing(false)
+    }
+  }
+
   const allReports = [...local.reports].sort((a, b) => b.weekNumber - a.weekNumber)
   const visibleReports = [...allReports].sort((a, b) =>
     reportSortDirection === 'asc'
@@ -201,7 +272,7 @@ export function ProjectPage({ store, navigate, projectId }: Props) {
         </Button>
       </div>
 
-      <Tabs defaultValue="reports" variant="bordered">
+      <Tabs defaultValue={initialTab} variant="bordered">
         <TabsList className="mb-8">
           <Tab value="reports">Reports ({allReports.length})</Tab>
           <Tab value="milestones">Milestones</Tab>
@@ -230,6 +301,28 @@ export function ProjectPage({ store, navigate, projectId }: Props) {
                 placeholder="Flinders University"
               />
             </div>
+
+            {local.floatProjectId && (
+              <div className="flex items-start justify-between gap-4 rounded-lg border border-border bg-muted/20 p-4">
+                <div>
+                  <p className="text-sm font-medium">Linked Float project</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Pull the latest Float project details into these settings.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setFloatRefreshError(null)
+                    setIsFloatRefreshOpen(true)
+                  }}
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Refresh from Float
+                </Button>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium mb-1.5">Description</label>
@@ -398,6 +491,18 @@ export function ProjectPage({ store, navigate, projectId }: Props) {
           )}
         </TabsPanel>
       </Tabs>
+
+      {isFloatRefreshOpen && (
+        <FloatRefreshConfirmModal
+          isLoading={isFloatRefreshing}
+          error={floatRefreshError}
+          onConfirm={handleRefreshFromFloat}
+          onCancel={() => {
+            setFloatRefreshError(null)
+            setIsFloatRefreshOpen(false)
+          }}
+        />
+      )}
     </Container>
   )
 }
