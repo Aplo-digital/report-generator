@@ -467,7 +467,7 @@ function ProjectSetupModal({
                         leading="Week"
                         type="number"
                         min={0}
-                        value={ms.startWeek}
+                        value={ms.startWeek ?? ''}
                         onChange={(e) => updateMilestone(ms.id, { startWeek: Number(e.target.value) })}
                       />
                       <InputGroup
@@ -475,7 +475,7 @@ function ProjectSetupModal({
                         leading="Week"
                         type="number"
                         min={0}
-                        value={ms.endWeek}
+                        value={ms.endWeek ?? ''}
                         onChange={(e) => updateMilestone(ms.id, { endWeek: Number(e.target.value) })}
                       />
                     </div>
