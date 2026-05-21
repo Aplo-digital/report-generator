@@ -94,37 +94,60 @@ function NavControls({ session }: { session: Session }) {
 
 // ─── Main app ─────────────────────────────────────────────────────────────────
 
-// Supabase puts `type=recovery` in the URL hash after redirecting from the email link.
-// We read it synchronously so we never miss the recovery intent even if the
-// PASSWORD_RECOVERY event fires before the component subscribes to onAuthStateChange.
-function isRecoveryRedirect() {
-  const params = new URLSearchParams(window.location.hash.replace(/^#/, ''))
-  const recovery = params.get('type') === 'recovery'
-  if (recovery) history.replaceState(null, '', window.location.pathname)
-  return recovery
+// Implicit flow: Supabase redirects with #access_token=...&type=recovery in the hash.
+// PKCE flow: Supabase redirects with ?code=... in the query — no type in the URL.
+// We detect both so we never flash the login screen before the recovery form.
+function detectRecoveryFromUrl(): { isRecovery: boolean; hasPendingCode: boolean } {
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+  const query = new URLSearchParams(window.location.search)
+  const isRecovery = hash.get('type') === 'recovery'
+  const hasPendingCode = query.has('code')
+  // Do NOT clear the URL here — Supabase reads the hash/code asynchronously and
+  // calling history.replaceState first would wipe the token before it can be processed.
+  return { isRecovery, hasPendingCode }
 }
+
+const { isRecovery: INITIAL_RECOVERY, hasPendingCode: HAS_PENDING_CODE } = detectRecoveryFromUrl()
 
 function App() {
   const [session, setSession] = useState<Session | null>(null)
+  // Stay loading if there's a pending PKCE code — the real auth event comes after exchange
   const [authLoading, setAuthLoading] = useState(true)
   const [unauthorizedEmail, setUnauthorizedEmail] = useState<string | null>(null)
-  const [passwordRecovery, setPasswordRecovery] = useState(isRecoveryRedirect)
+  const [passwordRecovery, setPasswordRecovery] = useState(INITIAL_RECOVERY)
   const [view, setView] = useState<NavView>({ name: 'projects' })
   const store = useStore()
   const navigate = (v: NavView) => setView(v)
 
   useEffect(() => {
+    let pendingCode = HAS_PENDING_CODE
+
+    // Safety valve: if the code exchange never resolves, stop loading after 8s
+    const fallback = pendingCode ? setTimeout(() => setAuthLoading(false), 8000) : null
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('[auth]', event, session?.user?.email ?? null)
       if (event === 'PASSWORD_RECOVERY') {
         setPasswordRecovery(true)
-      } else if (event === 'USER_UPDATED' || event === 'SIGNED_OUT') {
-        // Clear recovery mode once password is saved or user signs out
-        setPasswordRecovery(false)
+        setSession(session)
+        setAuthLoading(false)
+        clearTimeout(fallback ?? undefined)
+        pendingCode = false
+      } else if (event === 'INITIAL_SESSION' && pendingCode) {
+        // PKCE code is mid-exchange — stay on the loading screen, next event will resolve
+        setSession(session)
+      } else {
+        if (event === 'USER_UPDATED' || event === 'SIGNED_OUT') setPasswordRecovery(false)
+        setSession(session)
+        setAuthLoading(false)
+        clearTimeout(fallback ?? undefined)
+        pendingCode = false
       }
-      setSession(session)
-      setAuthLoading(false)
     })
-    return () => subscription.unsubscribe()
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(fallback ?? undefined)
+    }
   }, [])
 
   const project =
