@@ -12,8 +12,8 @@ import {
   TabsPanel,
   PageHeader,
 } from '@aplo/ui'
-import { Trash2, ChevronRight, Plus, GripVertical } from 'lucide-react'
-import type { NavView, Project, WeeklyReport, MilestoneDef, SprintLength } from '../types'
+import { Trash2, ChevronRight, Plus } from 'lucide-react'
+import type { NavView, Project, WeeklyReport, SprintLength } from '../types'
 import type { Store } from '../store'
 import {
   uid,
@@ -26,6 +26,7 @@ import {
   normalizeShownMilestoneIds,
 } from '../utils'
 import { InputGroup } from '../components/InputGroup'
+import { MilestoneGanttEditor } from '../components/MilestoneGanttEditor'
 
 interface Props {
   store: Store
@@ -43,106 +44,25 @@ function MilestonesTab({
   project: Project
   onUpdate: (patch: Partial<Project>) => void
 }) {
-  const [dragIdx, setDragIdx] = useState<number | null>(null)
-  const [overIdx, setOverIdx] = useState<number | null>(null)
-
-  const updateMilestone = (id: string, patch: Partial<MilestoneDef>) =>
-    onUpdate({ milestones: project.milestones.map((m) => (m.id === id ? { ...m, ...patch } : m)) })
-
-  const addMilestone = () =>
-    onUpdate({ milestones: [...project.milestones, { id: uid(), name: '', startWeek: 0, endWeek: 1 }] })
-
-  const removeMilestone = (id: string) =>
-    onUpdate({ milestones: project.milestones.filter((m) => m.id !== id) })
-
-  const handleDrop = (targetIdx: number) => {
-    if (dragIdx === null || dragIdx === targetIdx) return
-    const reordered = [...project.milestones]
-    const [moved] = reordered.splice(dragIdx, 1)
-    reordered.splice(targetIdx, 0, moved)
-    onUpdate({ milestones: reordered })
-    setDragIdx(null)
-    setOverIdx(null)
-  }
-
   return (
     <div className="space-y-4">
-      <div className='max-w-sm'>
-      <InputGroup
-        label="Gantt view starts at"
-        leading="Week"
-        type="number"
-        min={0}
-        value={project.timelineWindowStart}
-        onChange={(e) => onUpdate({ timelineWindowStart: Number(e.target.value) })}
-        description="The 6-block Gantt snapshot on each report starts from this week number."
-       
-      />
+      <div className="max-w-sm">
+        <InputGroup
+          label="Gantt view starts at"
+          leading="Week"
+          type="number"
+          min={0}
+          value={project.timelineWindowStart}
+          onChange={(e) => onUpdate({ timelineWindowStart: Number(e.target.value) })}
+          description="The 6-block Gantt snapshot on each report starts from this week number."
+        />
       </div>
 
-      {project.milestones.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-2">No milestones yet. Add one below.</p>
-      ) : (
-        <div className="space-y-2">
+      <MilestoneGanttEditor
+        milestones={project.milestones}
+        onChange={(milestones) => onUpdate({ milestones })}
+      />
 
-          {project.milestones.map((ms, idx) => (
-            <div
-              key={ms.id}
-              draggable
-              onDragStart={() => setDragIdx(idx)}
-              onDragOver={(e) => { e.preventDefault(); setOverIdx(idx) }}
-              onDrop={() => handleDrop(idx)}
-              onDragEnd={() => { setDragIdx(null); setOverIdx(null) }}
-              className={[
-                'flex items-end gap-3 rounded-lg border p-4 bg-surface transition-colors ',
-                overIdx === idx && dragIdx !== idx ? 'border-primary bg-primary/5' : 'border-border',
-                dragIdx === idx ? 'opacity-40' : '',
-              ].join(' ')}
-            >
-              <GripVertical className="w-4 h-4 text-muted-foreground cursor-grab shrink-0" />
-              <div className="w-full">
-                <Input
-                  value={ms.name}
-                  onChange={(e) => updateMilestone(ms.id, { name: e.target.value })}
-                  placeholder="Milestone name…"
-                  label="Milestone"
-                />
-              </div>
-              <InputGroup
-              label="Start"
-                leading="W"
-                type="number"
-                min={0}
-                value={ms.startWeek ?? 0}
-                onChange={(e) => updateMilestone(ms.id, { startWeek: Number(e.target.value) })}
-                containerClassName="w-32"
-              />
-              <InputGroup
-                leading="W"
-                label="End"
-                type="number"
-                min={0}
-                value={ms.endWeek ?? 1}
-                onChange={(e) => updateMilestone(ms.id, { endWeek: Number(e.target.value) })}
-                containerClassName="w-32"
-              />
-              <Button
-                variant="ghost"
-                size="icon"
-                className="shrink-0"
-                onClick={() => removeMilestone(ms.id)}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <Button variant="outline" size="sm" className="w-full" onClick={addMilestone}>
-        <Plus className="w-4 h-4 mr-2" />
-        Add Milestone
-      </Button>
       <p className="text-xs text-muted-foreground">
         Milestone names and timing live at the project level. New reports inherit the latest completion values automatically.
       </p>

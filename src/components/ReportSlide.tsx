@@ -266,32 +266,39 @@ function TimelineChart({ tasks, milestoneProgress, projectStartDate, currentSpri
   const currentIdx = blocks.findIndex((b) => b.blockNum === currentSprint)
 
   return (
-    <div style={{ position: 'relative', fontSize: '12px' }}>
-      {/* "We are here" pill */}
-      {currentIdx >= 0 && (
-        <div
-          style={{
-            position: 'absolute',
-            left: `${NAME_W + currentIdx * WEEK_W + 10}px`,
-            top: '6px',
-            width: `${WEEK_W - 20}px`,
-            background: '#e11d48',
-            color: 'white',
-            padding: '3px 0',
-            fontSize: '10px',
-            fontWeight: 700,
-            lineHeight: '1.4',
-            borderRadius: '4px',
-            textAlign: 'center',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          We are here
-        </div>
-      )}
+    <div style={{ fontSize: '12px' }}>
+      {/* "We are here" row — sits above the dark header so week numbers remain visible */}
+      <div style={{ display: 'flex', marginBottom: '4px' }}>
+        <div style={{ width: `${NAME_W}px`, flexShrink: 0 }} />
+        {blocks.map(({ blockNum }, idx) => (
+          <div
+            key={blockNum}
+            style={{ width: `${WEEK_W}px`, flexShrink: 0, display: 'flex', justifyContent: 'center' }}
+          >
+            {idx === currentIdx && (
+              <div
+                style={{
+                  width: `${WEEK_W - 20}px`,
+                  background: '#e11d48',
+                  color: 'white',
+                  padding: '3px 0',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  lineHeight: '1.4',
+                  borderRadius: '4px',
+                  textAlign: 'center',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                We are here
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
 
       {/* Block header row */}
-      <div style={{ display: 'flex', marginTop: '26px' }}>
+      <div style={{ display: 'flex' }}>
         <div style={{ width: `${NAME_W}px`, flexShrink: 0 }} />
         {blocks.map(({ blockNum, date }, idx) => (
           <div
@@ -309,7 +316,7 @@ function TimelineChart({ tasks, milestoneProgress, projectStartDate, currentSpri
               borderRadius: idx === 0 ? '4px 0 0 0' : idx === blocks.length - 1 ? '0 4px 0 0' : '0',
             }}
           >
-            <div style={{ fontWeight: 700, fontSize: '18px' }}>{blockNum}</div>
+            <div style={{ fontWeight: 700, fontSize: '18px' }}>{blockNum + 1}</div>
             <div style={{ fontSize: '10px', opacity: 0.6, marginTop: '2px' }}>
               {formatWeekDate(date)}
             </div>

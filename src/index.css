@@ -128,3 +128,7 @@ header.sticky > * {
     aria-hidden: true;
   }
 }
+
+.custom-shadow::before{
+  
+}

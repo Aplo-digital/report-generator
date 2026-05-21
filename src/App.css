@@ -182,3 +182,11 @@
     border-right-color: var(--border);
   }
 }
+
+.blurred-element {
+  /* Apply the custom SVG filter */
+  filter: url('#horizontal-blur');
+  
+  /* Optional: Works with backdrop-filter too */
+  /* backdrop-filter: url('#horizontal-blur'); */
+}

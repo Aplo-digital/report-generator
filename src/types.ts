@@ -3,8 +3,8 @@ export type ProjectStatus = 'on-track' | 'at-risk' | 'delayed'
 export interface MilestoneDef {
   id: string
   name: string
-  startWeek: number
-  endWeek: number
+  startWeek: number | null
+  endWeek: number | null
 }
 
 export interface Milestone {
@@ -67,6 +67,7 @@ export interface Project {
   currentMilestoneProgress: Record<string, number>
   timelineWindowStart: number
   reports: WeeklyReport[]
+  floatProjectId?: number | null
 }
 
 export type NavView =

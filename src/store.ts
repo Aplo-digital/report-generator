@@ -1,12 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { createClient } from '@supabase/supabase-js'
 import type { Project, WeeklyReport } from './types'
 import { getLatestReport, normalizeMilestoneProgress, normalizeShownMilestoneIds } from './utils'
-
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL as string,
-  import.meta.env.VITE_SUPABASE_ANON_KEY as string,
-)
+import { supabase } from './supabase'
 
 function normalizeProject(project: Project): Project {
   const milestones = project.milestones ?? []
