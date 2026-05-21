@@ -210,7 +210,7 @@ export function AuthPage({ unauthorizedEmail, mode: initialMode }: Props) {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Ryan Keon"
+                placeholder="John Smith"
                 className={inputClass}
               />
             </div>

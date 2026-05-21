@@ -367,7 +367,7 @@ function ProjectSetupModal({
                       onChange={(e) => onChange({ description: e.target.value })}
                       placeholder="Brief description of the project..."
                       rows={3}
-                      className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm resize-y outline-none transition-[border-color,box-shadow] duration-200 focus-visible:border-primary focus-visible:shadow-[0_0_0_3px_hsl(179_100%_21%/0.12)] placeholder:text-muted-foreground"
+                      className="w-full rounded-md border border-border bg-muted/40 px-3 py-2 text-sm resize-y outline-none transition-[border-color,box-shadow] duration-200 focus-visible:border-primary focus-visible:shadow-[0_0_0_3px_hsl(179_100%_21%/0.12)] placeholder:text-muted-foreground text-foreground"
                     />
                     {errors.description && (
                       <p className="mt-1 text-xs text-destructive">{errors.description}</p>
@@ -380,7 +380,7 @@ function ProjectSetupModal({
                       onChange={(e) => onChange({ goal: e.target.value })}
                       placeholder="What does success look like?"
                       rows={3}
-                      className="w-full rounded-md border border-border bg-white px-3 py-2 text-sm resize-y outline-none transition-[border-color,box-shadow] duration-200 focus-visible:border-primary focus-visible:shadow-[0_0_0_3px_hsl(179_100%_21%/0.12)] placeholder:text-muted-foreground"
+                      className="w-full rounded-md border border-border bg-muted/40 px-3 py-2 text-sm resize-y outline-none transition-[border-color,box-shadow] duration-200 focus-visible:border-primary focus-visible:shadow-[0_0_0_3px_hsl(179_100%_21%/0.12)] placeholder:text-muted-foreground text-foreground"
                     />
                     {errors.goal && <p className="mt-1 text-xs text-destructive">{errors.goal}</p>}
                   </div>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Navbar, Button, Switch, useTheme, useMotion } from '@aplo/ui'
-import { ChevronDown, LogOut } from 'lucide-react'
+import { Navbar, Button, useTheme, useMotion } from '@aplo/ui'
+import { ChevronDown, LogOut, Moon, Sun } from 'lucide-react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
 import { useStore } from './store'
@@ -55,7 +55,7 @@ function NavUserMenu({ session }: { session: Session }) {
           </div>
           <div className="py-1">
             <button
-              onClick={() => { setOpen(false); supabase.auth.signOut() }}
+              onClick={() => { setOpen(false); void supabase.auth.signOut() }}
               className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-left text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
             >
               <LogOut className="w-3.5 h-3.5" />
@@ -80,14 +80,13 @@ function NavControls({ session }: { session: Session }) {
 
   return (
     <div className="flex items-center gap-4">
-      <label className="flex items-center gap-2 text-sm">
-        Light
-        <Switch
-          checked={theme === 'light'}
-          onCheckedChange={(c) => setTheme(c ? 'light' : 'dark')}
-          size="sm"
-        />
-      </label>
+      <button
+        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+        className="w-8 h-8 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+        aria-label="Toggle theme"
+      >
+        {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+      </button>
       <NavUserMenu session={session} />
     </div>
   )
@@ -105,18 +104,16 @@ function App() {
   const navigate = (v: NavView) => setView(v)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setAuthLoading(false)
-    })
+    // onAuthStateChange fires INITIAL_SESSION on mount with the current session,
+    // so getSession() is not needed and would race with PASSWORD_RECOVERY events.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
         setPasswordRecovery(true)
-        setSession(session)
       } else {
         setPasswordRecovery(false)
-        setSession(session)
       }
+      setSession(session)
+      setAuthLoading(false)
     })
     return () => subscription.unsubscribe()
   }, [])

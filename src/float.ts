@@ -1,6 +1,6 @@
-// Requests are routed through the Vite dev server proxy (/float-api → https://api.float.com)
-// to avoid browser CORS restrictions. See vite.config.ts server.proxy.
-const FLOAT_BASE = '/float-api/v3'
+// In dev, requests hit the Vite proxy (/api/float → https://api.float.com).
+// In production, the same path is handled by api/float/[...path].ts (Vercel serverless).
+const FLOAT_BASE = '/api/float/v3'
 
 export interface FloatProject {
   project_id: number
@@ -23,11 +23,7 @@ export function isFloatConfigured(): boolean {
 }
 
 async function floatGet<T>(path: string): Promise<T> {
-  const key = import.meta.env.VITE_FLOAT_API_KEY as string
-  if (!key) throw new Error('Float API key not configured. Add VITE_FLOAT_API_KEY to your .env file.')
-  const res = await fetch(`${FLOAT_BASE}${path}`, {
-    headers: { Authorization: `Bearer ${key}` },
-  })
+  const res = await fetch(`${FLOAT_BASE}${path}`)
   if (!res.ok) {
     const body = await res.text().catch(() => '')
     throw new Error(`Float API ${res.status}: ${body || res.statusText}`)
