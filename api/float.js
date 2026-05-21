@@ -4,14 +4,15 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Float API key not configured' })
   }
 
-  const pathSegments = Array.isArray(req.query.path)
-    ? req.query.path
-    : req.query.path
-    ? [req.query.path]
-    : []
+  const path = Array.isArray(req.query.path) ? req.query.path[0] : req.query.path
+  if (!path) {
+    return res.status(400).json({ error: 'Float API path not provided' })
+  }
 
-  const search = new URL(req.url, 'http://localhost').search
-  const upstream = `https://api.float.com/${pathSegments.join('/')}${search}`
+  const url = new URL(req.url, 'http://localhost')
+  url.searchParams.delete('path')
+  const search = url.searchParams.size ? `?${url.searchParams.toString()}` : ''
+  const upstream = `https://api.float.com/${path}${search}`
 
   const upstreamRes = await fetch(upstream, {
     method: req.method,

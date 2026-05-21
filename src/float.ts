@@ -1,5 +1,5 @@
 // In dev, requests hit the Vite proxy (/api/float → https://api.float.com).
-// In production, the same path is handled by api/float/[...path].js (Vercel serverless).
+// In production, Vercel rewrites the same path to api/float.js.
 const FLOAT_BASE = '/api/float/v3'
 
 export interface FloatProject {

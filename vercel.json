@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/api/float/:path*", "destination": "/api/float?path=:path*" },
     { "source": "/:path((?!api/).*)", "destination": "/index.html" }
   ]
 }
