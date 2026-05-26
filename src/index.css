@@ -64,6 +64,69 @@ textarea[aria-invalid="true"] {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-destructive) 14%, transparent);
 }
 
+table tbody tr {
+  transition: background-color 150ms ease;
+}
+
+table tbody tr:hover {
+  background-color: rgb(93 184 182 / 10%);
+}
+
+.milestone-switch {
+  transition:
+    background-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 160ms ease;
+}
+
+.milestone-switch > * {
+  transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.milestone-switch:active:not([data-disabled]) {
+  transform: scale(0.96);
+}
+
+.milestone-switch[data-checked] {
+  animation: switch-pop-on 220ms ease-out;
+}
+
+.milestone-switch[data-unchecked] {
+  animation: switch-pop-off 180ms ease-out;
+}
+
+@keyframes switch-pop-on {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-primary) 0%, transparent);
+  }
+  55% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--color-primary) 18%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-primary) 0%, transparent);
+  }
+}
+
+@keyframes switch-pop-off {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-muted-foreground) 0%, transparent);
+  }
+  55% {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-muted-foreground) 14%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-muted-foreground) 0%, transparent);
+  }
+}
+
+.table-like-row {
+  transition: background-color 150ms ease;
+}
+
+.table-like-row:hover {
+  background-color: rgb(93 184 182 / 10%);
+}
+
 .dark input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(1) opacity(0.72);
 }
@@ -74,6 +137,28 @@ textarea[aria-invalid="true"] {
    Override it so the navbar spans edge-to-edge. */
 header.sticky > * {
   max-width: 100% !important;
+}
+
+/* ── Report editor workspace ──────────────────────────────────────────────── */
+
+.report-editor-workspace {
+  --sidebar-width: 244px;
+  grid-template-columns: var(--sidebar-width) minmax(440px, var(--editor-width, 560px)) minmax(0, 1fr);
+}
+
+@media (max-width: 1024px) {
+  .report-editor-workspace {
+    --sidebar-width: 56px;
+    grid-template-columns: var(--sidebar-width) minmax(440px, var(--editor-width, 560px)) minmax(0, 1fr);
+  }
+
+  .report-editor-sidebar-item {
+    justify-content: center;
+  }
+
+  .report-editor-sidebar-label {
+    display: none;
+  }
 }
 
 /* ── Print / PDF export ───────────────────────────────────────────────────── */

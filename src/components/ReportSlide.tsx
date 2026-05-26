@@ -195,13 +195,11 @@ function StarIcon() {
 function InfoIcon() {
   return (
     <svg
-      width="14" height="14" viewBox="0 0 24 24" fill="none"
-      stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      width="15" height="15" viewBox="0 0 24 24" fill="#2563eb"
       style={{ flexShrink: 0, marginTop: '2px' }}
     >
-      <circle cx="12" cy="12" r="10" />
-      <line x1="12" y1="16" x2="12" y2="12" />
-      <line x1="12" y1="8" x2="12.01" y2="8" />
+      <path d="M9 21h6a1 1 0 0 0 1-1v-1H8v1a1 1 0 0 0 1 1Z" />
+      <path d="M8 17h8v-1.2c0-1.2.5-2.3 1.3-3.2A7 7 0 1 0 6.7 12.6c.8.9 1.3 2 1.3 3.2V17Z" />
     </svg>
   )
 }
@@ -583,9 +581,9 @@ export function ReportSlide({ project, report, id }: ReportSlideProps) {
           flex: 1,
           display: 'grid',
           gridTemplateColumns: '320px 3fr 3fr 4fr',
-          gridTemplateRows: '1.1fr 0.8fr',
+          gridTemplateRows: '390px 1fr',
           columnGap: '48px',
-          rowGap: '24px',
+          rowGap: '42px',
           overflow: 'hidden',
         }}
       >

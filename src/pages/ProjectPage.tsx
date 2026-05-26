@@ -444,7 +444,7 @@ export function ProjectPage({ store, navigate, projectId, initialTab = 'reports'
                 <div
                   key={report.id}
                   onClick={() => navigate({ name: 'report', projectId, reportId: report.id })}
-                  className="flex items-center gap-4 py-4 px-4 transition-colors hover:bg-accent cursor-pointer"
+                  className="table-like-row flex items-center gap-4 py-4 px-4 cursor-pointer"
                 >
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     <button

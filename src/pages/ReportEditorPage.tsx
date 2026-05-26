@@ -5,14 +5,29 @@ import {
   Input,
   Select,
   SelectItem,
-  Checkbox,
-  Tabs,
-  TabsList,
-  Tab,
-  TabsPanel,
+  Switch,
   Label,
 } from '@aplo/ui'
-import { Plus, Trash2, Printer, Maximize2, X, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react'
+import {
+  Plus,
+  Trash2,
+  Printer,
+  Maximize2,
+  X,
+  Sparkles,
+  ChevronLeft,
+  ChevronRight,
+  Gauge,
+  Flag,
+  Lightbulb,
+  Trophy,
+  TriangleAlert,
+  CheckSquare,
+  ZoomIn,
+  ZoomOut,
+  Scan,
+  GripVertical,
+} from 'lucide-react'
 import type { NavView, Project, WeeklyReport, Achievement, Risk, ActionItem } from '../types'
 import type { Store } from '../store'
 import {
@@ -31,6 +46,122 @@ interface Props {
   navigate: (v: NavView) => void
   projectId: string
   reportId: string
+}
+
+type SectionId = 'status' | 'milestones' | 'insights' | 'achievements' | 'risks' | 'actions'
+type DragState = { startX: number; startWidth: number } | null
+
+const PANEL_STORAGE_KEY = 'report-editor-panels'
+const EDITOR_MIN_WIDTH = 440
+const EDITOR_MAX_WIDTH = 780
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
+
+function getStoredPanels() {
+  if (typeof window === 'undefined') return { editorWidth: 560 }
+
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(PANEL_STORAGE_KEY) ?? '{}') as {
+      editorWidth?: number
+    }
+
+    return {
+      editorWidth: clamp(stored.editorWidth ?? 560, EDITOR_MIN_WIDTH, EDITOR_MAX_WIDTH),
+    }
+  } catch {
+    return { editorWidth: 560 }
+  }
+}
+
+function Tooltip({
+  label,
+  children,
+  className = '',
+  side = 'top',
+  compactOnly = false,
+}: {
+  label: string
+  children: React.ReactNode
+  className?: string
+  side?: 'top' | 'right' | 'bottom'
+  compactOnly?: boolean
+}) {
+  const triggerRef = useRef<HTMLSpanElement>(null)
+  const [open, setOpen] = useState(false)
+  const [position, setPosition] = useState({ top: 0, left: 0 })
+  const [isCompact, setIsCompact] = useState(false)
+
+  useEffect(() => {
+    if (!compactOnly || typeof window === 'undefined') return
+
+    const query = window.matchMedia('(max-width: 1024px)')
+    const update = () => setIsCompact(query.matches)
+    update()
+    query.addEventListener('change', update)
+    return () => query.removeEventListener('change', update)
+  }, [compactOnly])
+
+  useEffect(() => {
+    if (!open) return
+
+    const updatePosition = () => {
+      const rect = triggerRef.current?.getBoundingClientRect()
+      if (!rect) return
+
+      const gap = 10
+      if (side === 'right') {
+        setPosition({ top: rect.top + rect.height / 2, left: rect.right + gap })
+      } else if (side === 'bottom') {
+        setPosition({ top: rect.bottom + gap, left: rect.left + rect.width / 2 })
+      } else {
+        setPosition({ top: rect.top - gap, left: rect.left + rect.width / 2 })
+      }
+    }
+
+    updatePosition()
+    window.addEventListener('resize', updatePosition)
+    window.addEventListener('scroll', updatePosition, true)
+    return () => {
+      window.removeEventListener('resize', updatePosition)
+      window.removeEventListener('scroll', updatePosition, true)
+    }
+  }, [open, side])
+
+  const hidden = compactOnly && !isCompact
+  const transform =
+    side === 'right'
+      ? `translate(${open ? '0' : '-4px'}, -50%)`
+      : side === 'bottom'
+        ? `translate(-50%, ${open ? '0' : '-4px'})`
+        : `translate(-50%, ${open ? '0' : '4px'})`
+
+  return (
+    <span
+      ref={triggerRef}
+      className={`inline-flex ${className}`}
+      onPointerEnter={() => setOpen(true)}
+      onPointerLeave={() => setOpen(false)}
+      onFocus={() => setOpen(true)}
+      onBlur={() => setOpen(false)}
+    >
+      {children}
+      {open && !hidden && typeof document !== 'undefined' &&
+        createPortal(
+          <span
+            role="tooltip"
+            className="pointer-events-none fixed z-[9999] whitespace-nowrap rounded-md bg-neutral-950 px-3 py-2 text-sm font-semibold text-white shadow-2xl ring-1 ring-neutral-700 transition-transform duration-150 ease-out"
+            style={{
+              top: position.top,
+              left: position.left,
+              transform,
+            }}
+          >
+            {label}
+          </span>,
+          document.body,
+        )}
+    </span>
+  )
 }
 
 // ─── Textarea styled to match Aplo Input ─────────────────────────────────────
@@ -90,20 +221,36 @@ function AddItemButton({
   )
 }
 
-function addItemOnShortcut(e: React.KeyboardEvent, add: (focusNewItem?: boolean) => void) {
+function isAddShortcutEvent(e: Pick<KeyboardEvent | React.KeyboardEvent, 'key' | 'shiftKey' | 'metaKey' | 'ctrlKey' | 'altKey'> & {
+  nativeEvent?: { isComposing?: boolean }
+  isComposing?: boolean
+}) {
   if (
     e.key !== 'Enter' ||
     !e.shiftKey ||
     e.metaKey ||
     e.ctrlKey ||
     e.altKey ||
-    e.nativeEvent.isComposing
+    e.nativeEvent?.isComposing ||
+    e.isComposing
   ) {
-    return
+    return false
   }
 
-  e.preventDefault()
-  add(true)
+  return true
+}
+
+function useAddItemShortcut(add: (focusNewItem?: boolean) => void) {
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!isAddShortcutEvent(event)) return
+      event.preventDefault()
+      add(true)
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [add])
 }
 
 // ─── Scaled slide preview ─────────────────────────────────────────────────────
@@ -111,9 +258,11 @@ function addItemOnShortcut(e: React.KeyboardEvent, add: (focusNewItem?: boolean)
 function ScaledPreview({
   children,
   onClick,
+  zoom = 1,
 }: {
   children: React.ReactNode
   onClick?: () => void
+  zoom?: number
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(0.5)
@@ -128,13 +277,15 @@ function ScaledPreview({
     return () => ro.disconnect()
   }, [])
 
+  const renderedScale = scale * zoom
+
   return (
     <div ref={containerRef} style={{ width: '100%' }}>
       <div
         onClick={onClick}
         style={{
-          width: `${1920 * scale}px`,
-          height: `${1080 * scale}px`,
+          width: `${1920 * renderedScale}px`,
+          height: `${1080 * renderedScale}px`,
           overflow: 'hidden',
           position: 'relative',
           borderRadius: '6px',
@@ -147,21 +298,21 @@ function ScaledPreview({
           <div
             style={{
               position: 'absolute',
-              top: `${10 * scale}px`,
-              right: `${10 * scale}px`,
+              top: `${10 * renderedScale}px`,
+              right: `${10 * renderedScale}px`,
               zIndex: 10,
               background: 'rgba(0,0,0,0.45)',
               borderRadius: '4px',
-              padding: `${4 * scale}px ${6 * scale}px`,
+              padding: `${4 * renderedScale}px ${6 * renderedScale}px`,
               display: 'flex',
               alignItems: 'center',
-              gap: `${4 * scale}px`,
+              gap: `${4 * renderedScale}px`,
               color: 'white',
-              fontSize: `${11 * scale}px`,
+              fontSize: `${11 * renderedScale}px`,
               pointerEvents: 'none',
             }}
           >
-            <Maximize2 style={{ width: `${12 * scale}px`, height: `${12 * scale}px` }} />
+            <Maximize2 style={{ width: `${12 * renderedScale}px`, height: `${12 * renderedScale}px` }} />
             Preview
           </div>
         )}
@@ -169,7 +320,7 @@ function ScaledPreview({
           style={{
             width: '1920px',
             height: '1080px',
-            transform: `scale(${scale})`,
+            transform: `scale(${renderedScale})`,
             transformOrigin: 'top left',
           }}
         >
@@ -214,27 +365,28 @@ function FullscreenPreview({
         justifyContent: 'center',
       }}
     >
-      {/* Close button */}
-      <button
-        onClick={onClose}
-        style={{
-          position: 'fixed',
-          top: '16px',
-          right: '16px',
-          background: 'rgba(255,255,255,0.12)',
-          border: 'none',
-          borderRadius: '50%',
-          width: '40px',
-          height: '40px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          color: 'white',
-        }}
-      >
-        <X style={{ width: '18px', height: '18px' }} />
-      </button>
+      <span style={{ position: 'fixed', top: '16px', right: '16px' }}>
+        <Tooltip label="Close preview" side="bottom">
+          <button
+            onClick={onClose}
+            aria-label="Close preview"
+            style={{
+              background: 'rgba(255,255,255,0.12)',
+              border: 'none',
+              borderRadius: '50%',
+              width: '40px',
+              height: '40px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: 'white',
+            }}
+          >
+            <X style={{ width: '18px', height: '18px' }} />
+          </button>
+        </Tooltip>
+      </span>
 
       {/* Slide */}
       <div
@@ -326,32 +478,48 @@ function MilestonesTab({
   onEditMilestones: () => void
 }) {
   const shownCount = report.shownMilestoneIds.length
+  const cappedShownCount = Math.min(shownCount, MAX_REPORT_MILESTONES)
 
   if (project.milestones.length === 0) {
     return (
       <div className="p-4 space-y-3 text-sm text-muted-foreground">
+        <div className="flex items-start justify-between gap-3">
+          <p className="text-sm font-medium text-foreground">Report showing 0/{MAX_REPORT_MILESTONES}</p>
+          <Button variant="ghost" size="sm" onClick={onEditMilestones}>
+            Edit milestones
+          </Button>
+        </div>
         <p>No milestones defined for this project yet.</p>
-        <Button variant="ghost" size="sm" onClick={onEditMilestones}>
-          Edit milestones
-        </Button>
       </div>
     )
   }
 
   return (
     <div className="p-4 space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-foreground">
+            Report showing {cappedShownCount}/{MAX_REPORT_MILESTONES}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">Toggle which milestones appear in the PDF.</p>
+        </div>
+        <Button variant="ghost" size="sm" onClick={onEditMilestones}>
+          Edit milestones
+        </Button>
+      </div>
       {project.milestones.map((ms) => (
         <div key={ms.id} className="border border-border rounded-lg p-3 space-y-2">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-medium">{ms.name || <span className="text-muted-foreground italic">Unnamed milestone</span>}</p>
-            <label className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Checkbox
+            <label className="shrink-0">
+              <span className="sr-only">Show {ms.name || 'milestone'} on PDF</span>
+              <Switch
                 checked={report.shownMilestoneIds.includes(ms.id)}
                 onCheckedChange={(checked) => onToggleShown(ms.id, checked)}
                 disabled={!report.shownMilestoneIds.includes(ms.id) && shownCount >= MAX_REPORT_MILESTONES}
                 size="sm"
+                className="milestone-switch"
               />
-              Prioritize on PDF
             </label>
           </div>
           <ProgressSlider
@@ -361,16 +529,10 @@ function MilestonesTab({
         </div>
       ))}
       <p className="text-xs text-muted-foreground">
-        The PDF shows up to {MAX_REPORT_MILESTONES} status milestones. Priorities matter when the project has more than that.
-      </p>
-      <p className="text-xs text-muted-foreground">
         {isLatestReport
           ? 'This report sets the live milestone progress that new reports will inherit.'
           : 'This report keeps its own snapshot. Changing it here will not affect newer reports.'}
       </p>
-      <Button variant="ghost" size="sm" onClick={onEditMilestones}>
-        Edit milestones
-      </Button>
     </div>
   )
 }
@@ -391,19 +553,22 @@ function InsightsTab({
     if (focusNewItem) setFocusedItemId(id)
     onChange({ insights: [...report.insights, { id, text: '' }] })
   }
+  useAddItemShortcut(add)
 
   const remove = (id: string) =>
     onChange({ insights: report.insights.filter((i) => i.id !== id) })
 
   return (
-    <div className="p-4 space-y-3" onKeyDown={(e) => addItemOnShortcut(e, add)}>
+    <div className="p-4 space-y-3">
       {report.insights.map((ins, idx) => (
         <div key={ins.id} className="border border-border rounded-lg p-3 space-y-2">
           <div className="flex items-start justify-between gap-2">
             <Label className="text-xs font-semibold text-muted-foreground">INSIGHT #{idx + 1}</Label>
-            <Button variant="ghost" size="icon-sm" onClick={() => remove(ins.id)}>
-              <Trash2 className="w-4 h-4" />
-            </Button>
+            <Tooltip label="Remove insight">
+              <Button variant="ghost" size="icon-sm" onClick={() => remove(ins.id)} aria-label="Remove insight">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </Tooltip>
           </div>
           <Textarea
             value={ins.text}
@@ -437,21 +602,24 @@ function AchievementsTab({
     if (focusNewItem) setFocusedItemId(id)
     onChange({ achievements: [...report.achievements, { id, text: '' }] })
   }
+  useAddItemShortcut(add)
 
   const remove = (id: string) =>
     onChange({ achievements: report.achievements.filter((item) => item.id !== id) })
 
   return (
-    <div className="p-4 space-y-3" onKeyDown={(e) => addItemOnShortcut(e, add)}>
+    <div className="p-4 space-y-3">
       {report.achievements.map((achievement) => (
         <div key={achievement.id} className="border border-border rounded-lg p-3 space-y-2">
           <div className="flex items-start justify-between gap-2">
             <Label className="text-xs font-semibold text-muted-foreground">
               ACHIEVEMENT #{report.achievements.indexOf(achievement) + 1}
             </Label>
-            <Button variant="ghost" size="icon-sm" onClick={() => remove(achievement.id)}>
-              <Trash2 className="w-4 h-4" />
-            </Button>
+            <Tooltip label="Remove achievement">
+              <Button variant="ghost" size="icon-sm" onClick={() => remove(achievement.id)} aria-label="Remove achievement">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </Tooltip>
           </div>
           <Textarea
             value={achievement.text}
@@ -485,19 +653,22 @@ function RisksTab({
     if (focusNewItem) setFocusedItemId(id)
     onChange({ risks: [...report.risks, { id, risk: '', mitigation: '' }] })
   }
+  useAddItemShortcut(add)
 
   const remove = (id: string) =>
     onChange({ risks: report.risks.filter((r) => r.id !== id) })
 
   return (
-    <div className="p-4 space-y-3" onKeyDown={(e) => addItemOnShortcut(e, add)}>
+    <div className="p-4 space-y-3">
       {report.risks.map((risk) => (
         <div key={risk.id} className="border border-border rounded-lg p-3 space-y-2">
           <div className="flex items-start justify-between gap-2">
             <Label className="text-xs font-semibold text-muted-foreground">RISK #{report.risks.indexOf(risk) + 1}</Label>
-            <Button variant="ghost" size="icon-sm" onClick={() => remove(risk.id)}>
-              <Trash2 className="w-4 h-4" />
-            </Button>
+            <Tooltip label="Remove risk">
+              <Button variant="ghost" size="icon-sm" onClick={() => remove(risk.id)} aria-label="Remove risk">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </Tooltip>
           </div>
           <div>
             <Label className="text-xs mb-1">Risk or Roadblock</Label>
@@ -548,19 +719,22 @@ function ActionsTab({
       ],
     })
   }
+  useAddItemShortcut(add)
 
   const remove = (id: string) =>
     onChange({ actionItems: report.actionItems.filter((a) => a.id !== id) })
 
   return (
-    <div className="p-4 space-y-3" onKeyDown={(e) => addItemOnShortcut(e, add)}>
+    <div className="p-4 space-y-3">
       {report.actionItems.map((item, idx) => (
         <div key={item.id} className="border border-border rounded-lg p-3 space-y-2">
           <div className="flex items-start justify-between gap-2">
             <Label className="text-xs font-semibold text-muted-foreground">ACTION #{idx + 1}</Label>
-            <Button variant="ghost" size="icon-sm" onClick={() => remove(item.id)}>
-              <Trash2 className="w-4 h-4" />
-            </Button>
+            <Tooltip label="Remove action item">
+              <Button variant="ghost" size="icon-sm" onClick={() => remove(item.id)} aria-label="Remove action item">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </Tooltip>
           </div>
           <div>
             <Label className="text-xs mb-1">Action Item</Label>
@@ -590,6 +764,24 @@ function ActionsTab({
   )
 }
 
+// ─── Composition workspace shell ─────────────────────────────────────────────
+
+function ResizeHandle({ onPointerDown }: { onPointerDown: (e: React.PointerEvent) => void }) {
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      onPointerDown={onPointerDown}
+      className="group absolute bottom-0 top-0 z-20 flex w-6 -translate-x-1/2 cursor-col-resize touch-none items-center justify-center"
+      style={{ left: 'calc(var(--sidebar-width) + var(--editor-width))' }}
+    >
+      <div className="flex h-10 w-6 items-center justify-center rounded-md border border-border bg-muted text-muted-foreground opacity-70 shadow-sm transition-all group-hover:border-primary/50 group-hover:bg-background group-hover:text-primary group-hover:opacity-100">
+        <GripVertical className="h-4 w-4" />
+      </div>
+    </div>
+  )
+}
+
 // ─── Main editor page ─────────────────────────────────────────────────────────
 
 export function ReportEditorPage({ store, navigate, projectId, reportId }: Props) {
@@ -606,6 +798,10 @@ export function ReportEditorPage({ store, navigate, projectId, reportId }: Props
 
   const [report, setReport] = useState<WeeklyReport | null>(normalizedStoredReport)
   const [fullscreen, setFullscreen] = useState(false)
+  const [activeSection, setActiveSection] = useState<SectionId>('status')
+  const [{ editorWidth }, setPanelWidths] = useState(getStoredPanels)
+  const [previewZoom, setPreviewZoom] = useState(1)
+  const [dragState, setDragState] = useState<DragState>(null)
   const isFirst = useRef(true)
 
   // Only re-sync from store when navigating to a different report.
@@ -623,6 +819,35 @@ export function ReportEditorPage({ store, navigate, projectId, reportId }: Props
     const t = setTimeout(() => store.upsertReport(projectId, report), 1200)
     return () => clearTimeout(t)
   }, [projectId, report, store])
+
+  useEffect(() => {
+    window.localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify({ editorWidth }))
+  }, [editorWidth])
+
+  useEffect(() => {
+    if (!dragState) return
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const delta = event.clientX - dragState.startX
+      setPanelWidths({
+        editorWidth: clamp(dragState.startWidth + delta, EDITOR_MIN_WIDTH, EDITOR_MAX_WIDTH),
+      })
+    }
+
+    const stopDragging = () => setDragState(null)
+
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+    window.addEventListener('pointermove', handlePointerMove)
+    window.addEventListener('pointerup', stopDragging, { once: true })
+
+    return () => {
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('pointerup', stopDragging)
+    }
+  }, [dragState])
 
   if (!project || !report) {
     return <div className="p-8 text-muted-foreground">Report not found.</div>
@@ -693,100 +918,229 @@ export function ReportEditorPage({ store, navigate, projectId, reportId }: Props
     updateReport({ shownMilestoneIds: nextShownIds })
   }
 
-  return (
-    <div className="flex h-full">
-      {/* ── Left: editor panel (50%) ── */}
-      <div className="w-1/2 max-w-2xl border-r border-border flex flex-col overflow-hidden bg-surface">
-        <div className="flex-1 overflow-y-auto">
-          <Tabs defaultValue="status" variant="bordered">
-            <div className="sticky top-0 bg-background z-10">
-              <div className="overflow-x-auto w-full pt-[15px] bg-surface">
-                <TabsList className="flex min-w-max  justify-between">
-                  <Tab value="status">Status</Tab>
-                  <Tab value="milestones">Milestones</Tab>
-                  <Tab value="insights">Insights</Tab>
-                  <Tab value="achievements">Achievements</Tab>
-                  <Tab value="risks">Risks</Tab>
-                  <Tab value="actions">Actions</Tab>
-                </TabsList>
+  const sections: Array<{
+    id: SectionId
+    label: string
+    icon: React.ComponentType<{ className?: string }>
+  }> = [
+    {
+      id: 'status',
+      label: 'Status',
+      icon: Gauge,
+    },
+    {
+      id: 'milestones',
+      label: 'Milestones',
+      icon: Flag,
+    },
+    {
+      id: 'insights',
+      label: 'Insights',
+      icon: Lightbulb,
+    },
+    {
+      id: 'achievements',
+      label: 'Achievements',
+      icon: Trophy,
+    },
+    {
+      id: 'risks',
+      label: 'Risks',
+      icon: TriangleAlert,
+    },
+    {
+      id: 'actions',
+      label: 'Actions',
+      icon: CheckSquare,
+    },
+  ]
+  const activeSectionConfig = sections.find((section) => section.id === activeSection) ?? sections[0]
+
+  const renderSectionEditor = () => {
+    switch (activeSection) {
+      case 'status':
+        return <StatusTab report={report} onChange={updateReport} />
+      case 'milestones':
+        return (
+          <MilestonesTab
+            project={project}
+            report={report}
+            isLatestReport={isLatestReport}
+            onSetProgress={handleMilestoneProgressChange}
+            onToggleShown={handleMilestoneShownToggle}
+            onEditMilestones={() => navigate({ name: 'project', projectId, tab: 'milestones' })}
+          />
+        )
+      case 'insights':
+        return <InsightsTab report={report} onChange={updateReport} />
+      case 'achievements':
+        return <AchievementsTab report={report} onChange={updateReport} />
+      case 'risks':
+        return <RisksTab report={report} onChange={updateReport} />
+      case 'actions':
+        return <ActionsTab report={report} onChange={updateReport} />
+      default:
+        return null
+    }
+  }
+
+  const renderSectionNav = () => (
+    <aside className="report-editor-sidebar relative z-30 flex h-full flex-col overflow-visible border-r border-border bg-surface">
+      <nav className="flex-1 space-y-1 p-2">
+        {sections.map((section) => {
+          const Icon = section.icon
+          const active = section.id === activeSection
+          const item = (
+            <button
+              type="button"
+              onClick={() => setActiveSection(section.id)}
+              className={[
+                'report-editor-sidebar-item flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors',
+                active
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground',
+              ].join(' ')}
+              aria-label={section.label}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              <span className="report-editor-sidebar-label min-w-0 font-medium">{section.label}</span>
+            </button>
+          )
+
+          return (
+            <Tooltip
+              key={section.id}
+              label={section.label}
+              side="right"
+              className="report-editor-sidebar-tooltip w-full"
+              compactOnly
+            >
+              {item}
+            </Tooltip>
+          )
+        })}
+      </nav>
+    </aside>
+  )
+
+  const renderPreviewPanel = () => (
+    <section className="flex h-full min-w-0 flex-col overflow-hidden bg-muted/20">
+      <div className="shrink-0 border-b border-border bg-background/90 px-4 py-3 backdrop-blur">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <Tooltip label="Previous report" side="bottom">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => handleNavigateToReport(previousReport)}
+                disabled={!previousReport}
+                aria-label="Previous report"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+            </Tooltip>
+            <Tooltip label="Next report" side="bottom">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => handleNavigateToReport(nextReport)}
+                disabled={!nextReport}
+                aria-label="Next report"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </Tooltip>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="truncate text-sm font-medium text-foreground">
+                  Week {report.weekNumber} - {formatDisplayDate(report.reportDate)}
+                </p>
+                {report.isDraft && (
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-slate-300 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-700">
+                    <Sparkles className="h-3 w-3" />
+                    Draft
+                  </span>
+                )}
               </div>
-            </div>
-
-            <TabsPanel value="status" keepMounted>
-              <StatusTab
-                report={report}
-                onChange={updateReport}
-              />
-            </TabsPanel>
-            <TabsPanel value="milestones" keepMounted>
-              <MilestonesTab
-                project={project}
-                report={report}
-                isLatestReport={isLatestReport}
-                onSetProgress={handleMilestoneProgressChange}
-                onToggleShown={handleMilestoneShownToggle}
-                onEditMilestones={() => navigate({ name: 'project', projectId, tab: 'milestones' })}
-              />
-            </TabsPanel>
-            <TabsPanel value="insights" keepMounted>
-              <InsightsTab report={report} onChange={updateReport} />
-            </TabsPanel>
-            <TabsPanel value="achievements" keepMounted>
-              <AchievementsTab report={report} onChange={updateReport} />
-            </TabsPanel>
-            <TabsPanel value="risks" keepMounted>
-              <RisksTab report={report} onChange={updateReport} />
-            </TabsPanel>
-            <TabsPanel value="actions" keepMounted>
-              <ActionsTab report={report} onChange={updateReport} />
-            </TabsPanel>
-
-          </Tabs>
-        </div>
-      </div>
-
-      {/* ── Right: slide preview (50%) ── */}
-      <div className="w-full flex flex-col overflow-hidden bg-muted/20">
-        <div className="shrink-0 bg-background/80 backdrop-blur border-b border-border px-6 py-3 flex items-center justify-between ">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => handleNavigateToReport(previousReport)}
-              disabled={!previousReport}
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => handleNavigateToReport(nextReport)}
-              disabled={!nextReport}
-            >
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-            <div className="flex items-center gap-2">
-              <p className="text-sm text-muted-foreground font-medium">
-                Week {report.weekNumber} - {formatDisplayDate(report.reportDate)}
+              <p className="truncate text-xs text-muted-foreground">
+                Focus: {activeSectionConfig.label}
               </p>
-              {report.isDraft && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-700">
-                  <Sparkles className="h-3 w-3" />
-                  Draft
-                </span>
-              )}
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={handlePrint}>
-            <Printer className="w-4 h-4 mr-2" />
-            Print / Export PDF
-          </Button>
+          <div className="flex items-center gap-1.5">
+            <Tooltip label="Zoom out" side="bottom">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setPreviewZoom((current) => clamp(Number((current - 0.1).toFixed(2)), 0.7, 1.6))}
+                aria-label="Zoom out"
+              >
+                <ZoomOut className="h-4 w-4" />
+              </Button>
+            </Tooltip>
+            <Tooltip label="Reset preview zoom" side="bottom">
+              <button
+                type="button"
+                onClick={() => setPreviewZoom(1)}
+                className="h-8 min-w-14 rounded-md px-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                {Math.round(previewZoom * 100)}%
+              </button>
+            </Tooltip>
+            <Tooltip label="Zoom in" side="bottom">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setPreviewZoom((current) => clamp(Number((current + 0.1).toFixed(2)), 0.7, 1.6))}
+                aria-label="Zoom in"
+              >
+                <ZoomIn className="h-4 w-4" />
+              </Button>
+            </Tooltip>
+            <Tooltip label="Fit width" side="bottom">
+              <Button variant="ghost" size="icon-sm" onClick={() => setPreviewZoom(1)} aria-label="Fit width">
+                <Scan className="h-4 w-4" />
+              </Button>
+            </Tooltip>
+            <Button variant="outline" size="sm" onClick={handlePrint}>
+              <Printer className="w-4 h-4 mr-2" />
+              Print
+            </Button>
+          </div>
         </div>
-        <div className="w-full overflow-auto p-24 flex items-center overflow-hidden">
-          <ScaledPreview onClick={() => setFullscreen(true)}>
+      </div>
+      <div className="flex-1 overflow-auto p-8 md:p-14">
+        <div className="mx-auto flex min-h-full w-full max-w-[1500px] items-start">
+          <ScaledPreview zoom={previewZoom} onClick={() => setFullscreen(true)}>
             <ReportSlide project={project} report={report} />
           </ScaledPreview>
         </div>
+      </div>
+    </section>
+  )
+
+  const renderEditorPanel = () => (
+    <main className="flex h-full min-w-0 flex-col overflow-hidden border-r border-border bg-card">
+      <div className="flex-1 overflow-y-auto bg-card">
+        <div className="mx-auto w-full max-w-3xl pb-10">{renderSectionEditor()}</div>
+      </div>
+    </main>
+  )
+
+  return (
+    <div className="h-full overflow-auto bg-background">
+      <div
+        className="report-editor-workspace relative grid h-full min-h-[720px]"
+        style={{
+          '--editor-width': `${editorWidth}px`,
+        } as React.CSSProperties}
+      >
+        {renderSectionNav()}
+        {renderEditorPanel()}
+        {renderPreviewPanel()}
+        <ResizeHandle
+          onPointerDown={(event) => setDragState({ startX: event.clientX, startWidth: editorWidth })}
+        />
       </div>
 
       {/* ── Fullscreen lightbox ── */}
