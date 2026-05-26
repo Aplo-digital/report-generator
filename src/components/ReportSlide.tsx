@@ -192,15 +192,16 @@ function StarIcon() {
   )
 }
 
-function MagnifyIcon() {
+function InfoIcon() {
   return (
     <svg
       width="14" height="14" viewBox="0 0 24 24" fill="none"
       stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
       style={{ flexShrink: 0, marginTop: '2px' }}
     >
-      <circle cx="11" cy="11" r="7" />
-      <line x1="16.5" y1="16.5" x2="21" y2="21" />
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="16" x2="12" y2="12" />
+      <line x1="12" y1="8" x2="12.01" y2="8" />
     </svg>
   )
 }
@@ -224,7 +225,7 @@ function InsightsAndAchievements({
           key={item.id}
           style={{ display: 'flex', gap: '10px', paddingBottom: '10px', borderBottom: '1px solid #f3f4f6' }}
         >
-          {item.kind === 'achievement' ? <StarIcon /> : <MagnifyIcon />}
+          {item.kind === 'achievement' ? <StarIcon /> : <InfoIcon />}
           <div style={{ fontSize: '14px', lineHeight: '1.55', color: '#374151' }}>{item.text}</div>
         </div>
       ))}

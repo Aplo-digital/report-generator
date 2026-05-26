@@ -620,7 +620,7 @@ export function ReportEditorPage({ store, navigate, projectId, reportId }: Props
   useEffect(() => {
     if (isFirst.current) { isFirst.current = false; return }
     if (!report) return
-    const t = setTimeout(() => store.upsertReport(projectId, report), 500)
+    const t = setTimeout(() => store.upsertReport(projectId, report), 1200)
     return () => clearTimeout(t)
   }, [projectId, report, store])
 

@@ -109,6 +109,12 @@ function detectRecoveryFromUrl(): { isRecovery: boolean; hasPendingCode: boolean
 
 const { isRecovery: INITIAL_RECOVERY, hasPendingCode: HAS_PENDING_CODE } = detectRecoveryFromUrl()
 
+function clearStoredSupabaseSession() {
+  const projectRef = new URL(import.meta.env.VITE_SUPABASE_URL as string).hostname.split('.')[0]
+  localStorage.removeItem(`sb-${projectRef}-auth-token`)
+  localStorage.removeItem(`sb-${projectRef}-auth-token-code-verifier`)
+}
+
 function App() {
   const [session, setSession] = useState<Session | null>(null)
   // Stay loading if there's a pending PKCE code — the real auth event comes after exchange
@@ -121,9 +127,16 @@ function App() {
 
   useEffect(() => {
     let pendingCode = HAS_PENDING_CODE
+    let resolved = false
 
-    // Safety valve: if the code exchange never resolves, stop loading after 8s
-    const fallback = pendingCode ? setTimeout(() => setAuthLoading(false), 8000) : null
+    const fallback = setTimeout(() => {
+      if (resolved) return
+      clearStoredSupabaseSession()
+      setSession(null)
+      setAuthLoading(false)
+      pendingCode = false
+      resolved = true
+    }, 8000)
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('[auth]', event, session?.user?.email ?? null)
@@ -131,8 +144,9 @@ function App() {
         setPasswordRecovery(true)
         setSession(session)
         setAuthLoading(false)
-        clearTimeout(fallback ?? undefined)
+        clearTimeout(fallback)
         pendingCode = false
+        resolved = true
       } else if (event === 'INITIAL_SESSION' && pendingCode) {
         // PKCE code is mid-exchange — stay on the loading screen, next event will resolve
         setSession(session)
@@ -140,13 +154,14 @@ function App() {
         if (event === 'USER_UPDATED' || event === 'SIGNED_OUT') setPasswordRecovery(false)
         setSession(session)
         setAuthLoading(false)
-        clearTimeout(fallback ?? undefined)
+        clearTimeout(fallback)
         pendingCode = false
+        resolved = true
       }
     })
     return () => {
       subscription.unsubscribe()
-      clearTimeout(fallback ?? undefined)
+      clearTimeout(fallback)
     }
   }, [])
 

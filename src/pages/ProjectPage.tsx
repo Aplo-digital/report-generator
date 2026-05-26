@@ -160,7 +160,7 @@ export function ProjectPage({ store, navigate, projectId, initialTab = 'reports'
   useEffect(() => {
     if (isFirst.current) { isFirst.current = false; return }
     if (!local) return
-    const t = setTimeout(() => store.upsertProject(local), 500)
+    const t = setTimeout(() => store.upsertProject(local), 1200)
     return () => clearTimeout(t)
   }, [local, store])
 

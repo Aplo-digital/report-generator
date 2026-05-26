@@ -54,7 +54,7 @@ export function AuthPage({ unauthorizedEmail, mode: initialMode }: Props) {
     setLoading(true)
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) setError(error.message)
+      if (error) setError(getAuthErrorMessage(error))
     } catch (err) {
       setError(getAuthErrorMessage(err))
     } finally {
@@ -74,7 +74,7 @@ export function AuthPage({ unauthorizedEmail, mode: initialMode }: Props) {
         options: { data: { full_name: name } },
       })
       if (error) {
-        setError(error.message)
+        setError(getAuthErrorMessage(error))
       } else {
         setSuccess('Check your email to confirm your account.')
       }
@@ -92,7 +92,7 @@ export function AuthPage({ unauthorizedEmail, mode: initialMode }: Props) {
     try {
       const { error } = await supabase.auth.updateUser({ password })
       if (error) {
-        setError(error.message)
+        setError(getAuthErrorMessage(error))
       } else {
         setSuccess('Password updated — you are now signed in.')
       }
@@ -113,7 +113,7 @@ export function AuthPage({ unauthorizedEmail, mode: initialMode }: Props) {
         redirectTo: window.location.origin,
       })
       if (error) {
-        setError(error.message)
+        setError(getAuthErrorMessage(error))
       } else {
         setSuccess('Password reset link sent — check your email.')
       }
