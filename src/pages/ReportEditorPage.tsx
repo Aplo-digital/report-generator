@@ -55,7 +55,7 @@ function Textarea({
       placeholder={placeholder}
       rows={rows}
       autoFocus={autoFocus}
-      className="w-full rounded-md border border-border bg-muted/40 px-3 py-2 text-sm resize-y outline-none transition-[border-color,box-shadow] duration-200 focus-visible:border-primary focus-visible:shadow-[0_0_0_3px_hsl(179_100%_21%/0.12)] placeholder:text-muted-foreground text-foreground"
+      className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm resize-y outline-none transition-[border-color,box-shadow] duration-200 focus-visible:border-primary focus-visible:shadow-[0_0_0_3px_hsl(179_100%_21%/0.12)] placeholder:text-muted-foreground text-foreground"
     />
   )
 }
@@ -63,9 +63,9 @@ function Textarea({
 function AddShortcutHint() {
   return (
     <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
-      <kbd className="rounded border border-border bg-background px-1.5 py-0.5 leading-none shadow-sm">Shift</kbd>
+      <kbd className="rounded border border-border bg-background px-1.5 py-0.5 leading-none ">Shift</kbd>
       <span>+</span>
-      <kbd className="rounded border border-border bg-background px-1.5 py-0.5 leading-none shadow-sm">Enter</kbd>
+      <kbd className="rounded border border-border bg-background px-1.5 py-0.5 leading-none ">Enter</kbd>
     </span>
   )
 }

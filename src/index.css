@@ -53,9 +53,10 @@ body {
   background: color-mix(in srgb, var(--color-primary) 12%, var(--color-muted));
 }
 
-[role="combobox"]:not(:disabled):hover {
-  border-color: color-mix(in srgb, var(--color-primary) 42%, var(--color-border));
-  background: color-mix(in srgb, var(--color-primary) 4%, var(--color-surface));
+[role="combobox"]:where(:focus, :focus-visible, [data-state="open"]) {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 12%, transparent);
 }
 
 textarea[aria-invalid="true"] {

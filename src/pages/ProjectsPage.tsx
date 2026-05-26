@@ -140,7 +140,7 @@ function FloatPrefillSection({ onChange }: { onChange: (patch: Partial<Project>)
       {/* Card */}
       <div
         className={[
-          'rounded-lg border p-4 flex items-center justify-between gap-4 transition-colors',
+          'min-h-20 rounded-lg border p-4 flex items-center justify-between gap-4 transition-colors',
           state === 'picking' ? 'border-primary/40 bg-background' :
           state === 'done'    ? 'border-primary/20 bg-primary/5' :
           state === 'error'   ? 'border-destructive/30 bg-destructive/5' :
@@ -391,7 +391,7 @@ function ProjectSetupModal({
                       placeholder="Brief description of the project..."
                       rows={3}
                       aria-invalid={!!errors.description}
-                      className="w-full rounded-md border border-border bg-muted/40 px-3 py-2 text-sm resize-y outline-none transition-[border-color,box-shadow] duration-200 focus-visible:border-primary focus-visible:shadow-[0_0_0_3px_hsl(179_100%_21%/0.12)] placeholder:text-muted-foreground text-foreground"
+                      className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm resize-y outline-none transition-[border-color,box-shadow] duration-200 focus-visible:border-primary focus-visible:shadow-[0_0_0_3px_hsl(179_100%_21%/0.12)] placeholder:text-muted-foreground text-foreground"
                     />
                     {errors.description && (
                       <p className="mt-1 text-xs text-destructive">{errors.description}</p>
@@ -405,7 +405,7 @@ function ProjectSetupModal({
                       placeholder="What does success look like?"
                       rows={3}
                       aria-invalid={!!errors.goal}
-                      className="w-full rounded-md border border-border bg-muted/40 px-3 py-2 text-sm resize-y outline-none transition-[border-color,box-shadow] duration-200 focus-visible:border-primary focus-visible:shadow-[0_0_0_3px_hsl(179_100%_21%/0.12)] placeholder:text-muted-foreground text-foreground"
+                      className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm resize-y outline-none transition-[border-color,box-shadow] duration-200 focus-visible:border-primary focus-visible:shadow-[0_0_0_3px_hsl(179_100%_21%/0.12)] placeholder:text-muted-foreground text-foreground"
                     />
                     {errors.goal && <p className="mt-1 text-xs text-destructive">{errors.goal}</p>}
                   </div>
