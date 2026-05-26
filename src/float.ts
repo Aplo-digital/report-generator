@@ -11,11 +11,20 @@ export interface FloatProject {
   start_date: string | null
   end_date: string | null
   active: 0 | 1
+  status?: 0 | 1 | 2 | 3 | 4
+  stage_id?: number | null
 }
 
 export interface FloatClient {
   client_id: number
   name: string
+}
+
+export interface FloatProjectStage {
+  id: number
+  name: string
+  project_status: 0 | 1 | 2 | 3 | 4
+  active: 0 | 1
 }
 
 async function floatGet<T>(path: string): Promise<T> {
@@ -40,6 +49,10 @@ export async function fetchFloatProjects(): Promise<FloatProject[]> {
 
 export async function fetchFloatClients(): Promise<FloatClient[]> {
   return floatGet<FloatClient[]>('/clients?per-page=200')
+}
+
+export async function fetchFloatProjectStages(): Promise<FloatProjectStage[]> {
+  return floatGet<FloatProjectStage[]>('/project-stages?per-page=200')
 }
 
 export async function fetchFloatProject(id: number): Promise<FloatProject> {

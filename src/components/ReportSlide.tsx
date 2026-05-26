@@ -7,7 +7,6 @@ import {
   getProjectWeekCount,
   getWeekStartDate,
   MAX_REPORT_MILESTONES,
-  normalizeShownMilestoneIds,
   TIMELINE_BLOCK_COUNT,
 } from '../utils'
 
@@ -193,16 +192,15 @@ function StarIcon() {
   )
 }
 
-function InfoIcon() {
+function MagnifyIcon() {
   return (
     <svg
       width="14" height="14" viewBox="0 0 24 24" fill="none"
       stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
       style={{ flexShrink: 0, marginTop: '2px' }}
     >
-      <circle cx="12" cy="12" r="10" />
-      <line x1="12" y1="16" x2="12" y2="12" />
-      <line x1="12" y1="8" x2="12.01" y2="8" />
+      <circle cx="11" cy="11" r="7" />
+      <line x1="16.5" y1="16.5" x2="21" y2="21" />
     </svg>
   )
 }
@@ -226,7 +224,7 @@ function InsightsAndAchievements({
           key={item.id}
           style={{ display: 'flex', gap: '10px', paddingBottom: '10px', borderBottom: '1px solid #f3f4f6' }}
         >
-          {item.kind === 'achievement' ? <StarIcon /> : <InfoIcon />}
+          {item.kind === 'achievement' ? <StarIcon /> : <MagnifyIcon />}
           <div style={{ fontSize: '14px', lineHeight: '1.55', color: '#374151' }}>{item.text}</div>
         </div>
       ))}
@@ -238,18 +236,47 @@ function InsightsAndAchievements({
 
 const NAME_W = 180
 const WEEK_W = 230
+const MAX_TIMELINE_MILESTONES = 6
 
 function getTimelineWindowStart(currentSprint: number, totalSprints: number): number {
   if (totalSprints <= TIMELINE_BLOCK_COUNT) return 0
   return Math.max(0, Math.min(currentSprint - 2, totalSprints - TIMELINE_BLOCK_COUNT))
 }
 
-function milestoneBarColor(progress: number): string {
-  if (progress === 0) return '#e5e7eb'
-  if (progress === 100) return '#16a34a'
-  if (progress < 34) return '#d1d5db'
-  if (progress < 67) return '#323232'
-  return '#4b5563'
+function clampProgress(progress: number): number {
+  return Math.max(0, Math.min(100, progress))
+}
+
+function prioritizeMilestonesByIds(
+  milestones: Project['milestones'],
+  preferredIds: string[],
+  limit: number,
+) {
+  const preferredIdSet = new Set(preferredIds)
+  const preferred = milestones.filter((milestone) => preferredIdSet.has(milestone.id))
+  const remaining = milestones.filter((milestone) => !preferredIdSet.has(milestone.id))
+
+  return [...preferred, ...remaining].slice(0, limit)
+}
+
+function timelineMilestonesForWindow(
+  milestones: Project['milestones'],
+  windowStart: number,
+  windowEnd: number,
+) {
+  if (milestones.length <= MAX_TIMELINE_MILESTONES) return milestones
+
+  const active = milestones.filter((milestone) => {
+    const start = milestone.startWeek ?? 0
+    const end = milestone.endWeek ?? start
+    return start <= windowEnd && end >= windowStart
+  })
+
+  return prioritizeMilestonesByIds(
+    milestones,
+    active.map((milestone) => milestone.id),
+    MAX_TIMELINE_MILESTONES,
+  )
 }
 
 interface TimelineProps {
@@ -268,6 +295,12 @@ function TimelineChart({ tasks, milestoneProgress, projectStartDate, currentSpri
     return { blockNum, date: getWeekStartDate(projectStartDate, blockNum * sprintLength) }
   })
   const currentIdx = blocks.findIndex((b) => b.blockNum === currentSprint)
+  const visibleTasks = timelineMilestonesForWindow(
+    tasks,
+    windowStart,
+    windowStart + blocks.length - 1,
+  )
+  const timelineWidth = NAME_W + blocks.length * WEEK_W
 
   return (
     <div style={{ fontSize: '12px' }}>
@@ -329,9 +362,10 @@ function TimelineChart({ tasks, milestoneProgress, projectStartDate, currentSpri
       </div>
 
       {/* Task rows */}
-      {tasks.map((task) => {
+      {visibleTasks.map((task) => {
         const startWeek = task.startWeek ?? 0
         const endWeek = task.endWeek ?? 1
+        const progress = clampProgress(milestoneProgress[task.id] ?? 0)
         const taskLabel = task.name.trim() || 'Milestone'
         const isFallbackLabel = !task.name.trim()
         const windowEnd = windowStart + blocks.length - 1
@@ -344,7 +378,13 @@ function TimelineChart({ tasks, milestoneProgress, projectStartDate, currentSpri
         return (
           <div
             key={task.id}
-            style={{ display: 'flex', height: '36px', alignItems: 'center', borderBottom: '1px solid #f3f4f6' }}
+            style={{
+              display: 'flex',
+              width: `${timelineWidth}px`,
+              height: '36px',
+              alignItems: 'center',
+              borderBottom: '1px solid #f3f4f6',
+            }}
           >
             <div
               style={{
@@ -378,10 +418,20 @@ function TimelineChart({ tasks, milestoneProgress, projectStartDate, currentSpri
                     height: '20px',
                     top: '50%',
                     transform: 'translateY(-50%)',
-                    background: milestoneBarColor(milestoneProgress[task.id] ?? 0),
+                    background: '#e5e7eb',
                     borderRadius: '3px',
+                    overflow: 'hidden',
                   }}
-                />
+                >
+                  <div
+                    style={{
+                      width: `${progress}%`,
+                      height: '100%',
+                      background: '#16a34a',
+                      borderRadius: progress === 100 ? '3px' : '3px 0 0 3px',
+                    }}
+                  />
+                </div>
               )}
             </div>
           </div>
@@ -394,7 +444,7 @@ function TimelineChart({ tasks, milestoneProgress, projectStartDate, currentSpri
           fontSize: '10px',
           color: '#323232',
           textAlign: 'right',
-          width: `${NAME_W + blocks.length * WEEK_W}px`,
+          width: `${timelineWidth}px`,
         }}
       >
         * scheduling of activities is indicative and activities may be readjusted
@@ -407,15 +457,17 @@ function TimelineChart({ tasks, milestoneProgress, projectStartDate, currentSpri
 
 export function ReportSlide({ project, report, id }: ReportSlideProps) {
   const statusConfig = STATUS_CONFIG[report.status]
-  const visibleMilestoneIds = normalizeShownMilestoneIds(project.milestones, report.shownMilestoneIds)
-  const visibleMilestones = project.milestones.filter((milestone) => visibleMilestoneIds.includes(milestone.id)).slice(0, MAX_REPORT_MILESTONES)
-  const hiddenMilestoneCount = Math.max(0, project.milestones.length - visibleMilestones.length)
+  const statusMilestones = project.milestones.length <= MAX_REPORT_MILESTONES
+    ? project.milestones
+    : prioritizeMilestonesByIds(project.milestones, report.shownMilestoneIds, MAX_REPORT_MILESTONES)
+  const hiddenMilestoneCount = Math.max(0, project.milestones.length - statusMilestones.length)
   const projectWeekCount = getProjectWeekCount(project.startDate, project.endDate)
   const totalSprints = Math.max(1, Math.ceil(projectWeekCount / (project.sprintLength ?? 1)))
   const currentSprint = Math.max(0, Math.min(
     Math.floor(report.weekNumber / (project.sprintLength ?? 1)),
     totalSprints - 1,
   ))
+  const projectGoal = project.goal.trim()
 
   return (
     <div
@@ -506,6 +558,21 @@ export function ReportSlide({ project, report, id }: ReportSlideProps) {
           </div>
         </div>
 
+        {projectGoal && (
+          <p
+            style={{
+              margin: '8px 0 0',
+              maxWidth: '1180px',
+              fontSize: '12px',
+              lineHeight: 1.45,
+              color: '#6b7280',
+              fontWeight: 400,
+            }}
+          >
+            <span style={{ fontWeight: 600, color: '#4b5563' }}>Project Goal:</span> {projectGoal}
+          </p>
+        )}
+
         <div style={{ height: '1px', background: '#e5e7eb', marginTop: '16px' }} />
       </div>
 
@@ -524,7 +591,7 @@ export function ReportSlide({ project, report, id }: ReportSlideProps) {
         {/* [1,1] Overall Project Status */}
         <div style={{ gridColumn: 1, gridRow: 1, overflow: 'hidden' }}>
           <SectionHeader>OVERALL PROJECT STATUS</SectionHeader>
-          {visibleMilestones.map((ms) => (
+          {statusMilestones.map((ms) => (
             <MilestoneRow key={ms.id} name={ms.name} progress={report.milestoneProgress?.[ms.id] ?? 0} />
           ))}
           {hiddenMilestoneCount > 0 && (
@@ -556,7 +623,7 @@ export function ReportSlide({ project, report, id }: ReportSlideProps) {
         <div style={{ gridColumn: '1 / -1', gridRow: 2, overflow: 'hidden' }}>
           <SectionHeader>PROJECT PROGRESS / TIMELINE</SectionHeader>
           <TimelineChart
-            tasks={visibleMilestones}
+            tasks={project.milestones}
             milestoneProgress={report.milestoneProgress ?? {}}
             projectStartDate={project.startDate}
             currentSprint={currentSprint}

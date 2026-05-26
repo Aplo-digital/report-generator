@@ -3,6 +3,13 @@ import type { Project, WeeklyReport } from './types'
 import { getLatestReport, normalizeMilestoneProgress, normalizeShownMilestoneIds } from './utils'
 import { supabase } from './supabase'
 
+function normalizeClientLogo(clientLogo: Project['clientLogo']): Project['clientLogo'] {
+  if (!clientLogo) return null
+  if (/^data:image\/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=]+$/.test(clientLogo)) return clientLogo
+  if (/^https?:\/\//.test(clientLogo)) return clientLogo
+  return null
+}
+
 function normalizeProject(project: Project): Project {
   const milestones = project.milestones ?? []
   const reports = (project.reports ?? []).map((report) => ({
@@ -14,6 +21,7 @@ function normalizeProject(project: Project): Project {
 
   return {
     ...project,
+    clientLogo: normalizeClientLogo(project.clientLogo),
     milestones,
     timelineWindowStart: Math.max(1, project.timelineWindowStart ?? 1),
     currentMilestoneProgress: normalizeMilestoneProgress(
@@ -39,7 +47,7 @@ function dbDeleteProject(id: string): void {
     .then(({ error }) => { if (error) console.error('Supabase delete error:', error) })
 }
 
-export function useStore() {
+export function useStore(enabled = true) {
   const [projects, setProjects] = useState<Project[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const projectsRef = useRef<Project[]>([])
@@ -49,7 +57,14 @@ export function useStore() {
 
   // Initial load from Supabase
   useEffect(() => {
+    if (!enabled) {
+      setProjects([])
+      setIsLoading(false)
+      return
+    }
+
     const load = async () => {
+      setIsLoading(true)
       try {
         const { data, error } = await supabase
           .from('projects')
@@ -64,7 +79,7 @@ export function useStore() {
       }
     }
     load()
-  }, [])
+  }, [enabled])
 
   const upsertProject = useCallback((project: Project) => {
     setProjects((prev) => {

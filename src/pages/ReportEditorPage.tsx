@@ -40,11 +40,13 @@ function Textarea({
   onChange,
   placeholder,
   rows = 3,
+  autoFocus = false,
 }: {
   value: string
   onChange: (v: string) => void
   placeholder?: string
   rows?: number
+  autoFocus?: boolean
 }) {
   return (
     <textarea
@@ -52,9 +54,56 @@ function Textarea({
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       rows={rows}
+      autoFocus={autoFocus}
       className="w-full rounded-md border border-border bg-muted/40 px-3 py-2 text-sm resize-y outline-none transition-[border-color,box-shadow] duration-200 focus-visible:border-primary focus-visible:shadow-[0_0_0_3px_hsl(179_100%_21%/0.12)] placeholder:text-muted-foreground text-foreground"
     />
   )
+}
+
+function AddShortcutHint() {
+  return (
+    <span className="ml-auto inline-flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+      <kbd className="rounded border border-border bg-background px-1.5 py-0.5 leading-none shadow-sm">Shift</kbd>
+      <span>+</span>
+      <kbd className="rounded border border-border bg-background px-1.5 py-0.5 leading-none shadow-sm">Enter</kbd>
+    </span>
+  )
+}
+
+function AddItemButton({
+  children,
+  onClick,
+}: {
+  children: React.ReactNode
+  onClick: () => void
+}) {
+  return (
+    <Button variant="outline" size="sm" className="w-full" onClick={onClick}>
+      <span className="flex w-full items-center justify-between gap-3">
+        <span className="inline-flex items-center">
+          <Plus className="w-4 h-4 mr-2" />
+          {children}
+        </span>
+        <AddShortcutHint />
+      </span>
+    </Button>
+  )
+}
+
+function addItemOnShortcut(e: React.KeyboardEvent, add: (focusNewItem?: boolean) => void) {
+  if (
+    e.key !== 'Enter' ||
+    !e.shiftKey ||
+    e.metaKey ||
+    e.ctrlKey ||
+    e.altKey ||
+    e.nativeEvent.isComposing
+  ) {
+    return
+  }
+
+  e.preventDefault()
+  add(true)
 }
 
 // ─── Scaled slide preview ─────────────────────────────────────────────────────
@@ -302,7 +351,7 @@ function MilestonesTab({
                 disabled={!report.shownMilestoneIds.includes(ms.id) && shownCount >= MAX_REPORT_MILESTONES}
                 size="sm"
               />
-              Show on this report
+              Prioritize on PDF
             </label>
           </div>
           <ProgressSlider
@@ -312,7 +361,7 @@ function MilestonesTab({
         </div>
       ))}
       <p className="text-xs text-muted-foreground">
-        Showing {shownCount} of {project.milestones.length} milestones on this report.
+        The PDF shows up to {MAX_REPORT_MILESTONES} status milestones. Priorities matter when the project has more than that.
       </p>
       <p className="text-xs text-muted-foreground">
         {isLatestReport
@@ -333,17 +382,21 @@ function InsightsTab({
   report: WeeklyReport
   onChange: (p: Partial<WeeklyReport>) => void
 }) {
+  const [focusedItemId, setFocusedItemId] = useState<string | null>(null)
   const update = (id: string, text: string) =>
     onChange({ insights: report.insights.map((i) => (i.id === id ? { ...i, text } : i)) })
 
-  const add = () =>
-    onChange({ insights: [...report.insights, { id: uid(), text: '' }] })
+  const add = (focusNewItem = false) => {
+    const id = uid()
+    if (focusNewItem) setFocusedItemId(id)
+    onChange({ insights: [...report.insights, { id, text: '' }] })
+  }
 
   const remove = (id: string) =>
     onChange({ insights: report.insights.filter((i) => i.id !== id) })
 
   return (
-    <div className="p-4 space-y-3">
+    <div className="p-4 space-y-3" onKeyDown={(e) => addItemOnShortcut(e, add)}>
       {report.insights.map((ins, idx) => (
         <div key={ins.id} className="border border-border rounded-lg p-3 space-y-2">
           <div className="flex items-start justify-between gap-2">
@@ -357,13 +410,13 @@ function InsightsTab({
             onChange={(v) => update(ins.id, v)}
             placeholder="Insight or observation…"
             rows={2}
+            autoFocus={focusedItemId === ins.id}
           />
         </div>
       ))}
-      <Button variant="outline" size="sm" className="w-full" onClick={add}>
-        <Plus className="w-4 h-4 mr-2" />
+      <AddItemButton onClick={add}>
         Add Insight
-      </Button>
+      </AddItemButton>
     </div>
   )
 }
@@ -375,17 +428,21 @@ function AchievementsTab({
   report: WeeklyReport
   onChange: (p: Partial<WeeklyReport>) => void
 }) {
+  const [focusedItemId, setFocusedItemId] = useState<string | null>(null)
   const update = (id: string, patch: Partial<Achievement>) =>
     onChange({ achievements: report.achievements.map((item) => (item.id === id ? { ...item, ...patch } : item)) })
 
-  const add = () =>
-    onChange({ achievements: [...report.achievements, { id: uid(), text: '' }] })
+  const add = (focusNewItem = false) => {
+    const id = uid()
+    if (focusNewItem) setFocusedItemId(id)
+    onChange({ achievements: [...report.achievements, { id, text: '' }] })
+  }
 
   const remove = (id: string) =>
     onChange({ achievements: report.achievements.filter((item) => item.id !== id) })
 
   return (
-    <div className="p-4 space-y-3">
+    <div className="p-4 space-y-3" onKeyDown={(e) => addItemOnShortcut(e, add)}>
       {report.achievements.map((achievement) => (
         <div key={achievement.id} className="border border-border rounded-lg p-3 space-y-2">
           <div className="flex items-start justify-between gap-2">
@@ -401,13 +458,13 @@ function AchievementsTab({
             onChange={(v) => update(achievement.id, { text: v })}
             placeholder="Describe the achievement or win..."
             rows={3}
+            autoFocus={focusedItemId === achievement.id}
           />
         </div>
       ))}
-      <Button variant="outline" size="sm" className="w-full" onClick={add}>
-        <Plus className="w-4 h-4 mr-2" />
+      <AddItemButton onClick={add}>
         Add Achievement
-      </Button>
+      </AddItemButton>
     </div>
   )
 }
@@ -419,17 +476,21 @@ function RisksTab({
   report: WeeklyReport
   onChange: (p: Partial<WeeklyReport>) => void
 }) {
+  const [focusedItemId, setFocusedItemId] = useState<string | null>(null)
   const update = (id: string, patch: Partial<Risk>) =>
     onChange({ risks: report.risks.map((r) => (r.id === id ? { ...r, ...patch } : r)) })
 
-  const add = () =>
-    onChange({ risks: [...report.risks, { id: uid(), risk: '', mitigation: '' }] })
+  const add = (focusNewItem = false) => {
+    const id = uid()
+    if (focusNewItem) setFocusedItemId(id)
+    onChange({ risks: [...report.risks, { id, risk: '', mitigation: '' }] })
+  }
 
   const remove = (id: string) =>
     onChange({ risks: report.risks.filter((r) => r.id !== id) })
 
   return (
-    <div className="p-4 space-y-3">
+    <div className="p-4 space-y-3" onKeyDown={(e) => addItemOnShortcut(e, add)}>
       {report.risks.map((risk) => (
         <div key={risk.id} className="border border-border rounded-lg p-3 space-y-2">
           <div className="flex items-start justify-between gap-2">
@@ -445,6 +506,7 @@ function RisksTab({
               onChange={(v) => update(risk.id, { risk: v })}
               placeholder="Describe the risk or roadblock…"
               rows={2}
+              autoFocus={focusedItemId === risk.id}
             />
           </div>
           <div>
@@ -458,10 +520,9 @@ function RisksTab({
           </div>
         </div>
       ))}
-      <Button variant="outline" size="sm" className="w-full" onClick={add}>
-        <Plus className="w-4 h-4 mr-2" />
+      <AddItemButton onClick={add}>
         Add Risk
-      </Button>
+      </AddItemButton>
     </div>
   )
 }
@@ -473,22 +534,26 @@ function ActionsTab({
   report: WeeklyReport
   onChange: (p: Partial<WeeklyReport>) => void
 }) {
+  const [focusedItemId, setFocusedItemId] = useState<string | null>(null)
   const update = (id: string, patch: Partial<ActionItem>) =>
     onChange({ actionItems: report.actionItems.map((a) => (a.id === id ? { ...a, ...patch } : a)) })
 
-  const add = () =>
+  const add = (focusNewItem = false) => {
+    const id = uid()
+    if (focusNewItem) setFocusedItemId(id)
     onChange({
       actionItems: [
         ...report.actionItems,
-        { id: uid(), text: '', responsible: '', completed: false },
+        { id, text: '', responsible: '', completed: false },
       ],
     })
+  }
 
   const remove = (id: string) =>
     onChange({ actionItems: report.actionItems.filter((a) => a.id !== id) })
 
   return (
-    <div className="p-4 space-y-3">
+    <div className="p-4 space-y-3" onKeyDown={(e) => addItemOnShortcut(e, add)}>
       {report.actionItems.map((item, idx) => (
         <div key={item.id} className="border border-border rounded-lg p-3 space-y-2">
           <div className="flex items-start justify-between gap-2">
@@ -504,6 +569,7 @@ function ActionsTab({
               onChange={(v) => update(item.id, { text: v })}
               placeholder="Describe the action item…"
               rows={2}
+              autoFocus={focusedItemId === item.id}
             />
           </div>
           <div>
@@ -517,10 +583,9 @@ function ActionsTab({
           </div>
         </div>
       ))}
-      <Button variant="outline" size="sm" className="w-full" onClick={add}>
-        <Plus className="w-4 h-4 mr-2" />
+      <AddItemButton onClick={add}>
         Add Action Item
-      </Button>
+      </AddItemButton>
     </div>
   )
 }

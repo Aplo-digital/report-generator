@@ -116,7 +116,7 @@ function App() {
   const [unauthorizedEmail, setUnauthorizedEmail] = useState<string | null>(null)
   const [passwordRecovery, setPasswordRecovery] = useState(INITIAL_RECOVERY)
   const [view, setView] = useState<NavView>({ name: 'projects' })
-  const store = useStore()
+  const store = useStore(!!session && !passwordRecovery)
   const navigate = (v: NavView) => setView(v)
 
   useEffect(() => {

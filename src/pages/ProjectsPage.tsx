@@ -6,8 +6,8 @@ import { MilestoneGanttEditor } from '../components/MilestoneGanttEditor'
 import type { NavView, Project, MilestoneDef, SprintLength } from '../types'
 import type { Store } from '../store'
 import { uid, todayISO, addDaysISO, formatDisplayDate } from '../utils'
-import { fetchFloatProjects, fetchFloatClients } from '../float'
-import type { FloatProject, FloatClient } from '../float'
+import { fetchFloatProjects, fetchFloatClients, fetchFloatProjectStages } from '../float'
+import type { FloatProject, FloatClient, FloatProjectStage } from '../float'
 
 interface Props {
   store: Store
@@ -38,6 +38,35 @@ function createProject(): Project {
 
 type FloatPickerState = 'idle' | 'loading' | 'picking' | 'done' | 'error'
 
+const EXCLUDED_CLIENT_NAME = 'aplo digital'
+const EXCLUDED_PROJECT_STATUSES = new Set([3, 4])
+const EXCLUDED_PROJECT_STAGE_NAMES = new Set(['closed', 'completed', 'cancelled', 'canceled'])
+
+function normalizeFloatLabel(value: string): string {
+  return value.trim().toLowerCase()
+}
+
+function isFloatProjectPrefillEligible(
+  project: FloatProject,
+  clientMap: Map<number, string>,
+  stageMap: Map<number, FloatProjectStage>,
+): boolean {
+  if (project.active === 0) return false
+
+  const clientName = project.client_id != null ? clientMap.get(project.client_id) : null
+  if (clientName && normalizeFloatLabel(clientName) === EXCLUDED_CLIENT_NAME) return false
+
+  if (project.status != null && EXCLUDED_PROJECT_STATUSES.has(project.status)) return false
+
+  const stage = project.stage_id != null ? stageMap.get(project.stage_id) : null
+  if (!stage) return true
+
+  return (
+    !EXCLUDED_PROJECT_STATUSES.has(stage.project_status) &&
+    !EXCLUDED_PROJECT_STAGE_NAMES.has(normalizeFloatLabel(stage.name))
+  )
+}
+
 function FloatPrefillSection({ onChange }: { onChange: (patch: Partial<Project>) => void }) {
   const [state, setState] = useState<FloatPickerState>('idle')
   const [projects, setProjects] = useState<FloatProject[]>([])
@@ -52,12 +81,20 @@ function FloatPrefillSection({ onChange }: { onChange: (patch: Partial<Project>)
     setSearch('')
     setError(null)
     try {
-      const [floatProjects, floatClients] = await Promise.all([
+      const [floatProjects, floatClients, floatProjectStages] = await Promise.all([
         fetchFloatProjects(),
         fetchFloatClients(),
+        fetchFloatProjectStages(),
       ])
-      setProjects(floatProjects.filter((p) => p.active !== 0))
-      setClientMap(new Map((floatClients as FloatClient[]).map((c) => [c.client_id, c.name])))
+      const nextClientMap = new Map((floatClients as FloatClient[]).map((c) => [c.client_id, c.name]))
+      const stageMap = new Map(
+        (floatProjectStages as FloatProjectStage[]).map((stage) => [stage.id, stage]),
+      )
+
+      setProjects(
+        floatProjects.filter((project) => isFloatProjectPrefillEligible(project, nextClientMap, stageMap)),
+      )
+      setClientMap(nextClientMap)
       setState('picking')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load Float projects')
