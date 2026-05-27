@@ -21,7 +21,8 @@ import {
   fileToBase64,
   getDefaultShownMilestoneIds,
   getLatestReport,
-  getWeekDateISO,
+  getReportDateISO,
+  getReportWeekIndex,
   normalizeMilestoneProgress,
   normalizeShownMilestoneIds,
 } from '../utils'
@@ -84,7 +85,7 @@ function normalizeReports(project: Project): WeeklyReport[] {
     .filter((r) => !r.isDraft)
     .map((r) => ({
       ...r,
-      reportDate: getWeekDateISO(project.startDate, r.weekNumber),
+      reportDate: getReportDateISO(project.startDate, r.weekNumber),
       milestoneProgress: normalizeMilestoneProgress(project.milestones, r.milestoneProgress),
       shownMilestoneIds: normalizeShownMilestoneIds(project.milestones, r.shownMilestoneIds),
       achievements: r.achievements ?? [],
@@ -143,11 +144,11 @@ export function ProjectPage({ store, navigate, projectId, initialTab = 'reports'
   const [isFloatRefreshing, setIsFloatRefreshing] = useState(false)
   const [floatRefreshError, setFloatRefreshError] = useState<string | null>(null)
   const isFirst = useRef(true)
+  const isDirty = useRef(false)
   const { toast, toasts } = useToast()
 
   useEffect(() => {
     if (!project) {
-      // This page keeps a local editable draft, so clear it when the route project disappears.
       setLocal(null)
       return
     }
@@ -156,13 +157,21 @@ export function ProjectPage({ store, navigate, projectId, initialTab = 'reports'
     if (reportsChanged(project.reports, normalized)) {
       store.upsertProject({ ...project, reports: normalized })
     }
+    // Sync from store — not a user edit, so reset dirty flag
+    isDirty.current = false
     setLocal({ ...project, reports: normalized })
   }, [project, projectId, store])
 
   useEffect(() => {
     if (isFirst.current) { isFirst.current = false; return }
     if (!local) return
-    const t = setTimeout(() => { store.upsertProject(local); toast('Project saved') }, 1200)
+    const t = setTimeout(() => {
+      store.upsertProject(local)
+      if (isDirty.current) {
+        toast('Project saved')
+        isDirty.current = false
+      }
+    }, 1200)
     return () => clearTimeout(t)
   }, [local, store, toast])
 
@@ -174,7 +183,8 @@ export function ProjectPage({ store, navigate, projectId, initialTab = 'reports'
     )
   }
 
-  const update = (patch: Partial<Project>) =>
+  const update = (patch: Partial<Project>) => {
+    isDirty.current = true
     setLocal((current) => {
       if (!current) return current
       const next = { ...current, ...patch }
@@ -184,9 +194,11 @@ export function ProjectPage({ store, navigate, projectId, initialTab = 'reports'
         reports: normalizeReports(next),
       }
     })
+  }
 
   const handleLogoSelect = async (file: File) => {
     const b64 = await fileToBase64(file)
+    isDirty.current = false  // suppress the generic "Project saved" — logo has its own message
     update({ clientLogo: b64 })
     toast('Logo updated')
   }
@@ -198,17 +210,18 @@ export function ProjectPage({ store, navigate, projectId, initialTab = 'reports'
 
   const handleNewReport = () => {
     const lastReport = getLatestReport(local.reports)
-    const nextWeek = lastReport ? lastReport.weekNumber + 1 : 0
+    const nextWeek = lastReport ? lastReport.weekNumber + 1 : 1
+    const nextWeekIndex = getReportWeekIndex(nextWeek)
     const newReport: WeeklyReport = {
       id: uid(),
       weekNumber: nextWeek,
-      reportDate: getWeekDateISO(local.startDate, nextWeek),
+      reportDate: getReportDateISO(local.startDate, nextWeek),
       isDraft: false,
       status: 'on-track',
       milestoneProgress: { ...normalizeMilestoneProgress(local.milestones, local.currentMilestoneProgress) },
       shownMilestoneIds: normalizeShownMilestoneIds(
         local.milestones,
-        getDefaultShownMilestoneIds(local.milestones, nextWeek, local.sprintLength ?? 1),
+        getDefaultShownMilestoneIds(local.milestones, nextWeekIndex, local.sprintLength ?? 1),
       ),
       insights: [],
       achievements: [],

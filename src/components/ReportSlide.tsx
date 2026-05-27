@@ -5,6 +5,7 @@ import {
   formatSlideDate,
   formatWeekDate,
   getProjectWeekCount,
+  getReportWeekIndex,
   getWeekStartDate,
   MAX_REPORT_MILESTONES,
   TIMELINE_BLOCK_COUNT,
@@ -21,6 +22,14 @@ const STATUS_CONFIG = {
   'at-risk': { bg: '#ea580c', label: 'AT RISK' },
   delayed: { bg: '#dc2626', label: 'DELAYED' },
 } as const
+
+const CONFIDENCE_LABELS: Record<number, string> = {
+  1: 'NOT CONFIDENT',
+  2: 'SLIGHTLY CONFIDENT',
+  3: 'MODERATELY CONFIDENT',
+  4: 'CONFIDENT',
+  5: 'EXTREMELY CONFIDENT',
+}
 
 // ─── Shared primitives ────────────────────────────────────────────────────────
 
@@ -462,8 +471,9 @@ export function ReportSlide({ project, report, id }: ReportSlideProps) {
   const hiddenMilestoneCount = Math.max(0, project.milestones.length - statusMilestones.length)
   const projectWeekCount = getProjectWeekCount(project.startDate, project.endDate)
   const totalSprints = Math.max(1, Math.ceil(projectWeekCount / (project.sprintLength ?? 1)))
+  const reportWeekIndex = getReportWeekIndex(report.weekNumber)
   const currentSprint = Math.max(0, Math.min(
-    Math.floor(report.weekNumber / (project.sprintLength ?? 1)),
+    Math.floor(reportWeekIndex / (project.sprintLength ?? 1)),
     totalSprints - 1,
   ))
   const projectGoal = project.goal.trim()
@@ -530,15 +540,15 @@ export function ReportSlide({ project, report, id }: ReportSlideProps) {
                 style={{
                   background: '#1e293b',
                   color: 'white',
-                  padding: '9px 18px',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  letterSpacing: '0.5px',
-                  borderRadius: '6px',
+                  padding: '7px 14px',
+                  fontSize: '9px',
+                  fontWeight: 700,
+                  letterSpacing: '2px',
+                  borderRadius: '5px',
                   whiteSpace: 'nowrap',
                 }}
               >
-                Confidence {report.confidenceLevel}/5
+                {CONFIDENCE_LABELS[report.confidenceLevel] ?? `CONFIDENCE ${report.confidenceLevel}/5`}
               </span>
             )}
             <span
@@ -581,7 +591,7 @@ export function ReportSlide({ project, report, id }: ReportSlideProps) {
           flex: 1,
           display: 'grid',
           gridTemplateColumns: '320px 3fr 3fr 4fr',
-          gridTemplateRows: '390px 1fr',
+          gridTemplateRows: '420px 1fr',
           columnGap: '48px',
           rowGap: '42px',
           overflow: 'hidden',

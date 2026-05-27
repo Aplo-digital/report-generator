@@ -34,6 +34,14 @@ export function getWeekDateISO(projectStartDate: string, weekOffset: number): st
   return addDaysISO(projectStartDate, weekOffset * 7)
 }
 
+export function getReportWeekIndex(reportWeekNumber: number): number {
+  return Math.max(0, reportWeekNumber - 1)
+}
+
+export function getReportDateISO(projectStartDate: string, reportWeekNumber: number): string {
+  return getWeekDateISO(projectStartDate, getReportWeekIndex(reportWeekNumber))
+}
+
 export function getWeekStartDate(projectStartDate: string, weekOffset: number): Date {
   const d = new Date(projectStartDate)
   d.setDate(d.getDate() + weekOffset * 7)
@@ -94,10 +102,10 @@ export function normalizeShownMilestoneIds(
 
 export function getDefaultShownMilestoneIds(
   milestones: MilestoneDef[],
-  reportWeekNumber: number,
+  reportWeekIndex: number,
   sprintLength: number,
 ): string[] {
-  const currentSprint = Math.floor(reportWeekNumber / sprintLength)
+  const currentSprint = Math.floor(reportWeekIndex / sprintLength)
   const windowStart = Math.max(0, currentSprint - 2)
   const windowEnd = currentSprint + 3
   const overlappingMilestones = milestones.filter((milestone) => {

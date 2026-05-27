@@ -26,7 +26,6 @@ import {
   ZoomIn,
   ZoomOut,
   Scan,
-  GripVertical,
 } from 'lucide-react'
 import type { NavView, Project, WeeklyReport, Achievement, Risk, ActionItem } from '../types'
 import type { Store } from '../store'
@@ -47,6 +46,9 @@ interface Props {
   projectId: string
   reportId: string
 }
+
+const STATUS_DISPLAY_LABELS: Record<string, string> = { 'on-track': 'On Track', 'at-risk': 'At Risk', delayed: 'Delayed' }
+const STATUS_BY_LABEL: Record<string, string> = { 'On Track': 'on-track', 'At Risk': 'at-risk', Delayed: 'delayed' }
 
 type SectionId = 'status' | 'milestones' | 'insights' | 'achievements' | 'risks' | 'actions'
 type DragState = { startX: number; startWidth: number } | null
@@ -358,12 +360,12 @@ function StatusTab({
       />
       <Select
         label="Project Status"
-        value={report.status}
-        onValueChange={(v) => v && onChange({ status: v as WeeklyReport['status'] })}
+        value={STATUS_DISPLAY_LABELS[report.status]}
+        onValueChange={(v) => v && onChange({ status: STATUS_BY_LABEL[v] as WeeklyReport['status'] })}
       >
-        <SelectItem value="on-track">On Track</SelectItem>
-        <SelectItem value="at-risk">At Risk</SelectItem>
-        <SelectItem value="delayed">Delayed</SelectItem>
+        <SelectItem value="On Track">On Track</SelectItem>
+        <SelectItem value="At Risk">At Risk</SelectItem>
+        <SelectItem value="Delayed">Delayed</SelectItem>
       </Select>
       <Select
         label="Confidence Level"
@@ -420,24 +422,23 @@ function MilestonesTab({
   }
 
   return (
-    <div className="p-4 space-y-3">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-medium text-foreground">
-            Report showing {cappedShownCount}/{MAX_REPORT_MILESTONES}
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">Toggle which milestones appear in the PDF.</p>
-        </div>
-        <Button variant="ghost" size="sm" onClick={onEditMilestones}>
-          Edit milestones
-        </Button>
+    <div>
+      <div className="px-5 pt-6 pb-3">
+        <p className="text-sm font-medium text-foreground">
+          {cappedShownCount}/{MAX_REPORT_MILESTONES} milestones prioritised
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">Toggle which milestones are prioritised on the PDF.</p>
+      </div>
+      <div className="flex items-center justify-between gap-3 px-5 pb-2">
+        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Milestone</span>
+        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground shrink-0">On report</span>
       </div>
       {project.milestones.map((ms) => (
-        <div key={ms.id} className="border border-border rounded-lg p-3 space-y-2">
+        <div key={ms.id} className="space-y-3 py-4 px-5 border-t border-border">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-medium">{ms.name || <span className="text-muted-foreground italic">Unnamed milestone</span>}</p>
             <label className="shrink-0">
-              <span className="sr-only">Show {ms.name || 'milestone'} on PDF</span>
+              <span className="sr-only">prioritise {ms.name || 'milestone'} on PDF</span>
               <Switch
                 checked={report.shownMilestoneIds.includes(ms.id)}
                 onCheckedChange={(checked) => onToggleShown(ms.id, checked)}
@@ -453,7 +454,7 @@ function MilestonesTab({
           />
         </div>
       ))}
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs px-5 border-t border-border pt-4 pb-6 text-muted-foreground">
         {isLatestReport
           ? 'This report sets the live milestone progress that new reports will inherit.'
           : 'This report keeps its own snapshot. Changing it here will not affect newer reports.'}
@@ -697,13 +698,9 @@ function ResizeHandle({ onPointerDown }: { onPointerDown: (e: React.PointerEvent
       role="separator"
       aria-orientation="vertical"
       onPointerDown={onPointerDown}
-      className="group absolute bottom-0 top-0 z-20 flex w-6 -translate-x-1/2 cursor-col-resize touch-none items-center justify-center"
+      className="absolute bottom-0 top-0 z-20 w-3 -translate-x-1/2 cursor-col-resize touch-none"
       style={{ left: 'calc(var(--sidebar-width) + var(--editor-width))' }}
-    >
-      <div className="flex h-10 w-6 items-center justify-center rounded-md border border-border bg-muted text-muted-foreground opacity-70 shadow-sm transition-all group-hover:border-primary/50 group-hover:bg-background group-hover:text-primary group-hover:opacity-100">
-        <GripVertical className="h-4 w-4" />
-      </div>
-    </div>
+    />
   )
 }
 
@@ -714,11 +711,11 @@ export function ReportEditorPage({ store, navigate, projectId, reportId }: Props
   const storedReport = project?.reports.find((r) => r.id === reportId)
   const normalizedStoredReport = storedReport
     ? {
-        ...storedReport,
-        milestoneProgress: normalizeMilestoneProgress(project?.milestones ?? [], storedReport.milestoneProgress),
-        shownMilestoneIds: normalizeShownMilestoneIds(project?.milestones ?? [], storedReport.shownMilestoneIds),
-        achievements: storedReport.achievements ?? [],
-      }
+      ...storedReport,
+      milestoneProgress: normalizeMilestoneProgress(project?.milestones ?? [], storedReport.milestoneProgress),
+      shownMilestoneIds: normalizeShownMilestoneIds(project?.milestones ?? [], storedReport.shownMilestoneIds),
+      achievements: storedReport.achievements ?? [],
+    }
     : null
 
   const [report, setReport] = useState<WeeklyReport | null>(normalizedStoredReport)
@@ -762,7 +759,7 @@ export function ReportEditorPage({ store, navigate, projectId, reportId }: Props
     const PADDING = 64
     const scale = Math.min((w - PADDING * 2) / SLIDE_W, (h - PADDING * 2) / SLIDE_H)
     setCanvasTransform({ x: (w - SLIDE_W * scale) / 2, y: (h - SLIDE_H * scale) / 2, scale })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Ctrl/Cmd+Wheel → zoom around cursor; plain wheel → pan
@@ -823,18 +820,18 @@ export function ReportEditorPage({ store, navigate, projectId, reportId }: Props
     setReport((current) =>
       current
         ? {
-            ...current,
-            ...patch,
-            milestoneProgress: normalizeMilestoneProgress(
-              project.milestones,
-              patch.milestoneProgress ?? current.milestoneProgress,
-            ),
-            shownMilestoneIds: normalizeShownMilestoneIds(
-              project.milestones,
-              patch.shownMilestoneIds ?? current.shownMilestoneIds,
-            ),
-            isDraft: false,
-          }
+          ...current,
+          ...patch,
+          milestoneProgress: normalizeMilestoneProgress(
+            project.milestones,
+            patch.milestoneProgress ?? current.milestoneProgress,
+          ),
+          shownMilestoneIds: normalizeShownMilestoneIds(
+            project.milestones,
+            patch.shownMilestoneIds ?? current.shownMilestoneIds,
+          ),
+          isDraft: false,
+        }
         : current,
     )
 
@@ -958,37 +955,37 @@ export function ReportEditorPage({ store, navigate, projectId, reportId }: Props
     label: string
     icon: React.ComponentType<{ className?: string }>
   }> = [
-    {
-      id: 'status',
-      label: 'Status',
-      icon: Gauge,
-    },
-    {
-      id: 'milestones',
-      label: 'Milestones',
-      icon: Flag,
-    },
-    {
-      id: 'insights',
-      label: 'Insights',
-      icon: Lightbulb,
-    },
-    {
-      id: 'achievements',
-      label: 'Achievements',
-      icon: Trophy,
-    },
-    {
-      id: 'risks',
-      label: 'Risks',
-      icon: TriangleAlert,
-    },
-    {
-      id: 'actions',
-      label: 'Actions',
-      icon: CheckSquare,
-    },
-  ]
+      {
+        id: 'status',
+        label: 'Status',
+        icon: Gauge,
+      },
+      {
+        id: 'milestones',
+        label: 'Milestones',
+        icon: Flag,
+      },
+      {
+        id: 'insights',
+        label: 'Insights',
+        icon: Lightbulb,
+      },
+      {
+        id: 'achievements',
+        label: 'Achievements',
+        icon: Trophy,
+      },
+      {
+        id: 'risks',
+        label: 'Risks',
+        icon: TriangleAlert,
+      },
+      {
+        id: 'actions',
+        label: 'Actions',
+        icon: CheckSquare,
+      },
+    ]
   const activeSectionConfig = sections.find((section) => section.id === activeSection) ?? sections[0]
 
   const renderSectionEditor = () => {
@@ -1180,14 +1177,14 @@ export function ReportEditorPage({ store, navigate, projectId, reportId }: Props
 
   const renderEditorPanel = () => (
     <main className="flex h-full min-w-0 flex-col overflow-hidden border-r border-border bg-card">
-      <div className="flex-1 overflow-y-auto bg-card">
-        <div className="mx-auto w-full max-w-3xl pb-10">{renderSectionEditor()}</div>
+      <div className="editor-scroll flex-1 bg-card">
+        <div className="w-full pb-10">{renderSectionEditor()}</div>
       </div>
     </main>
   )
 
   return (
-    <div className="h-full overflow-auto bg-background">
+    <div className="h-full overflow-hidden bg-background">
       <div
         className="report-editor-workspace relative grid h-full min-h-[720px]"
         style={{

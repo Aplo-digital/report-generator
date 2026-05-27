@@ -323,11 +323,11 @@ function ProjectSetupModal({
   onCancel: () => void
 }) {
   const stepTitles: Record<1 | 2, string> = {
-    1: 'Capture the essentials before you save',
-    2: 'Add milestones to the timeline',
+    1: 'Set up your project',
+    2: 'Project milestones',
   }
   const stepDescriptions: Record<1 | 2, string> = {
-    1: 'This keeps every project starting with the core context your reports depend on.',
+    1: 'Core project details. These can be edited later.',
     2: 'Each milestone appears on the Gantt chart and tracks progress across reports. You can edit these any time.',
   }
   const footerHints: Record<1 | 2, string> = {
@@ -341,11 +341,8 @@ function ProjectSetupModal({
         <div className="p-6 sm:p-8">
           <div className="mb-8">
             <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary mb-2">
-                  New Project: Step {step} of 2
-                </p>
-                <h2 className="text-2xl font-semibold mb-2">{stepTitles[step]}</h2>
+              <div className="w-full justify-center items-center">
+                <div className="flex w-full items-center mb-2"><h2 className="text-2xl font-semibold">{stepTitles[step]}</h2><div className="text-muted-foreground mx-4 border rounded bg-gray-50 px-1.5 py-0.5 text-sm">Step {step} of 2</div></div>
                 <p className="text-sm text-muted-foreground max-w-2xl">{stepDescriptions[step]}</p>
               </div>
               <Button variant="ghost" size="icon-sm" onClick={onCancel} className="shrink-0 mt-1">
@@ -458,7 +455,12 @@ function ProjectSetupModal({
 
           {step === 2 && (
             <div className="space-y-4">
-              <InputGroup
+         
+              <MilestoneGanttEditor
+                milestones={draft.milestones}
+                onChange={(milestones) => onChange({ milestones })}
+              />
+                <InputGroup
                 label="Gantt view starts at"
                 leading="Week"
                 type="number"
@@ -466,10 +468,6 @@ function ProjectSetupModal({
                 value={draft.timelineWindowStart}
                 onChange={(e) => onChange({ timelineWindowStart: Math.max(1, Number(e.target.value) || 1) })}
                 description="The 6-block Gantt snapshot on each report starts from this week number."
-              />
-              <MilestoneGanttEditor
-                milestones={draft.milestones}
-                onChange={(milestones) => onChange({ milestones })}
               />
             </div>
           )}

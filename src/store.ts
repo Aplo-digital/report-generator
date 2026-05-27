@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Achievement, ActionItem, Insight, MilestoneDef, Project, ProjectStatus, Risk, WeeklyReport } from './types'
-import { getLatestReport, normalizeMilestoneProgress, normalizeShownMilestoneIds } from './utils'
+import { getLatestReport, getReportDateISO, normalizeMilestoneProgress, normalizeShownMilestoneIds } from './utils'
 import { supabase } from './supabase'
 
 type PersistenceMode = 'normalized' | 'legacy'
@@ -59,12 +59,20 @@ function normalizeClientLogo(clientLogo: Project['clientLogo']): Project['client
 
 function normalizeProject(project: Project): Project {
   const milestones = project.milestones ?? []
-  const reports = (project.reports ?? []).map((report) => ({
-    ...report,
-    milestoneProgress: normalizeMilestoneProgress(milestones, report.milestoneProgress),
-    shownMilestoneIds: normalizeShownMilestoneIds(milestones, report.shownMilestoneIds),
-    achievements: report.achievements ?? [],
-  }))
+  const rawReports = project.reports ?? []
+  const shiftLegacyReportWeeks = rawReports.some((report) => (report.weekNumber ?? 0) === 0)
+  const reports = rawReports.map((report) => {
+    const weekNumber = (report.weekNumber ?? 0) + (shiftLegacyReportWeeks ? 1 : 0)
+
+    return {
+      ...report,
+      weekNumber,
+      reportDate: project.startDate ? getReportDateISO(project.startDate, weekNumber) : report.reportDate,
+      milestoneProgress: normalizeMilestoneProgress(milestones, report.milestoneProgress),
+      shownMilestoneIds: normalizeShownMilestoneIds(milestones, report.shownMilestoneIds),
+      achievements: report.achievements ?? [],
+    }
+  })
   const latestReport = getLatestReport(reports)
 
   return {

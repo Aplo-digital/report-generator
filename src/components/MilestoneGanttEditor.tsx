@@ -2,14 +2,17 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { GripVertical, Trash2, Plus } from 'lucide-react'
 import type { MilestoneDef } from '../types'
 import { uid } from '../utils'
+import crossCursorUrl from '../assets/cross.svg?url'
 
 const CELL_W = 80
 const ROW_H = 52
 const NAME_W = 228
 const HEADER_H = 40
 
-const TEAL = '#0d9488'
+const TEAL = '#2ea197'
 const GHOST_COLOR = '#6b7280'
+
+const ADD_CURSOR = `url("${crossCursorUrl}") 9 9, crosshair`
 
 const colorFor = () => TEAL
 
@@ -167,7 +170,7 @@ export function MilestoneGanttEditor({ milestones, onChange }: Props) {
             {Array.from({ length: numCols }, (_, i) => (
               <div
                 key={i}
-                style={{ width: CELL_W, flexShrink: 0 }}
+                style={{ width: CELL_W, flexShrink: 0, backgroundColor: i % 2 === 1 ? 'rgba(0,0,0,0.04)' : undefined }}
                 className="flex items-center justify-center border-r border-border/40 last:border-r-0"
               >
                 <span className="text-xs text-muted-foreground font-medium">W{i + 1}</span>
@@ -231,12 +234,12 @@ export function MilestoneGanttEditor({ milestones, onChange }: Props) {
                 <div
                   data-name-col="true"
                   style={{ width: NAME_W, flexShrink: 0 }}
-                  className="sticky left-0 z-10 bg-background border-r border-border flex items-center gap-1.5 px-2"
+                  className="sticky left-0 z-10 bg-background border-r border-border flex items-center gap-1.5 px-2 hover:bg-muted/40 transition-colors cursor-text"
                 >
                   <GripVertical className="w-3.5 h-3.5 text-muted-foreground/60 cursor-grab shrink-0" />
                   <span
                     className="w-2 h-2 rounded-full shrink-0"
-                    style={{ backgroundColor: color }}
+                    style={{ backgroundColor: placed ? color : '#9ca3af' }}
                   />
                   <input
                     value={ms.name}
@@ -265,7 +268,7 @@ export function MilestoneGanttEditor({ milestones, onChange }: Props) {
               className="relative flex-1"
               style={{
                 width: numCols * CELL_W,
-                cursor: placed ? 'default' : 'crosshair',
+                cursor: placed ? 'default' : ADD_CURSOR,
               }}
               onMouseDown={(e) => handleTimelineMouseDown(e, ms)}
               onMouseMove={(e) => {
@@ -284,14 +287,14 @@ export function MilestoneGanttEditor({ milestones, onChange }: Props) {
                 <div
                   key={i}
                   className="absolute top-0 bottom-0 border-r border-border/25"
-                  style={{ left: i * CELL_W, width: CELL_W }}
+                  style={{ left: i * CELL_W, width: CELL_W, backgroundColor: i % 2 === 1 ? 'rgba(0,0,0,0.01)' : undefined }}
                 />
               ))}
 
               {/* Ghost bar — unplaced + hovering */}
               {showGhost && (
                 <div
-                  className="absolute top-1/2 -translate-y-1/2 rounded-md pointer-events-none transition-none"
+                  className="absolute top-1/2 -translate-y-1/2 rounded-md pointer-events-none transition-none border border-black"
                   style={{
                     left: ghostRow!.week * CELL_W + 3,
                     width: CELL_W - 6,
@@ -319,7 +322,7 @@ export function MilestoneGanttEditor({ milestones, onChange }: Props) {
               {/* Placed bar */}
               {placed && (
                 <div
-                  className="absolute top-1/2 -translate-y-1/2 rounded-md flex items-center overflow-visible group/bar"
+                  className="absolute top-1/2 -translate-y-1/2 rounded-md flex items-center overflow-visible group/bar border-1 border-teal-700 shadow-md"
                   style={{
                     left: ms.startWeek! * CELL_W + 3,
                     width: Math.max((ms.endWeek! - ms.startWeek!) * CELL_W - 6, 8),
@@ -339,8 +342,10 @@ export function MilestoneGanttEditor({ milestones, onChange }: Props) {
 
                   {/* Label */}
                   {(ms.endWeek! - ms.startWeek!) * CELL_W > 48 && (
-                    <span className="absolute inset-0 flex items-center px-3 text-xs font-medium text-white/95 truncate pointer-events-none">
-                      {ms.name || 'Untitled'}
+                    <span className="absolute inset-0 flex items-center px-3 pointer-events-none">
+                      <span className="truncate min-w-0 text-xs font-medium text-white/95">
+                        {ms.name || 'Untitled'}
+                      </span>
                     </span>
                   )}
 
@@ -354,14 +359,6 @@ export function MilestoneGanttEditor({ milestones, onChange }: Props) {
                 </div>
               )}
 
-              {/* "Click and drag to place" hint for unplaced, non-hovering rows */}
-              {!placed && !isCreating && !showGhost && (
-                <div className="absolute inset-0 flex items-center px-3">
-                  <span className="text-xs text-muted-foreground/40 select-none">
-                    Click &amp; drag to place
-                  </span>
-                </div>
-              )}
             </div>
               </div>
         )
