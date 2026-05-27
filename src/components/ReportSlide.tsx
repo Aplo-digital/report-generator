@@ -545,11 +545,11 @@ export function ReportSlide({ project, report, id }: ReportSlideProps) {
               style={{
                 background: statusConfig.bg,
                 color: 'white',
-                padding: '9px 18px',
-                fontSize: '11px',
+                padding: '7px 14px',
+                fontSize: '9px',
                 fontWeight: 700,
                 letterSpacing: '2px',
-                borderRadius: '6px',
+                borderRadius: '5px',
               }}
             >
               {statusConfig.label}

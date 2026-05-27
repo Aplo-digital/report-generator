@@ -27,6 +27,7 @@ import {
 } from '../utils'
 import { InputGroup } from '../components/InputGroup'
 import { MilestoneGanttEditor } from '../components/MilestoneGanttEditor'
+import { Toaster, useToast } from '../components/Toast'
 import { fetchFloatClients, fetchFloatProject } from '../float'
 
 interface Props {
@@ -72,7 +73,7 @@ function MilestonesTab({
   )
 }
 
-const STATUS_COLORS = { 'on-track': 'bg-green-500', 'at-risk': 'bg-orange-500', delayed: 'bg-red-500' } as const
+const STATUS_COLORS = { 'on-track': 'bg-[rgb(22,163,74)]', 'at-risk': 'bg-orange-500', delayed: 'bg-red-500' } as const
 
 // ─── Normalize existing reports (update dates, fill missing fields) ────────────
 
@@ -142,6 +143,7 @@ export function ProjectPage({ store, navigate, projectId, initialTab = 'reports'
   const [isFloatRefreshing, setIsFloatRefreshing] = useState(false)
   const [floatRefreshError, setFloatRefreshError] = useState<string | null>(null)
   const isFirst = useRef(true)
+  const { toast, toasts } = useToast()
 
   useEffect(() => {
     if (!project) {
@@ -160,9 +162,9 @@ export function ProjectPage({ store, navigate, projectId, initialTab = 'reports'
   useEffect(() => {
     if (isFirst.current) { isFirst.current = false; return }
     if (!local) return
-    const t = setTimeout(() => store.upsertProject(local), 1200)
+    const t = setTimeout(() => { store.upsertProject(local); toast('Project saved') }, 1200)
     return () => clearTimeout(t)
-  }, [local, store])
+  }, [local, store, toast])
 
   if (!project || !local) {
     return (
@@ -186,6 +188,7 @@ export function ProjectPage({ store, navigate, projectId, initialTab = 'reports'
   const handleLogoSelect = async (file: File) => {
     const b64 = await fileToBase64(file)
     update({ clientLogo: b64 })
+    toast('Logo updated')
   }
 
   const handleDeleteReport = (reportId: string) => {
@@ -260,6 +263,7 @@ export function ProjectPage({ store, navigate, projectId, initialTab = 'reports'
   )
 
   return (
+    <>
     <Container as="main" className="py-8">
       <div className="flex items-end justify-between mb-8">
         <PageHeader
@@ -435,58 +439,60 @@ export function ProjectPage({ store, navigate, projectId, initialTab = 'reports'
           </div>
 
           {visibleReports.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
+            <div className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
               No reports yet. Create your first one above.
             </div>
           ) : (
-            <div className="divide-y divide-border">
-              {visibleReports.map((report) => (
-                <div
-                  key={report.id}
-                  onClick={() => navigate({ name: 'report', projectId, reportId: report.id })}
-                  className="table-like-row flex items-center gap-4 py-4 px-4 cursor-pointer"
-                >
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <button
-                      className="font-medium text-sm text-primary hover:underline"
-                      onClick={() => navigate({ name: 'report', projectId, reportId: report.id })}
-                    >
-                      Week {report.weekNumber}
-                    </button>
-                    <span className="text-muted-foreground text-sm">·</span>
-                    <span className="text-sm text-muted-foreground">
-                      {formatDisplayDate(report.reportDate)}
-                    </span>
-                  </div>
-                  <span
-                    className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold text-white ${STATUS_COLORS[report.status]}`}
+            <div className="rounded-xl border border-border overflow-hidden">
+              <div className="divide-y divide-border">
+                {visibleReports.map((report) => (
+                  <div
+                    key={report.id}
+                    onClick={() => navigate({ name: 'report', projectId, reportId: report.id })}
+                    className="table-like-row flex items-center gap-4 py-4 px-4 cursor-pointer"
                   >
-                    {STATUS_LABELS[report.status]}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="secondary"
-                      size="icon-sm"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleDeleteReport(report.id)
-                      }}
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <button
+                        className="font-medium text-sm text-primary hover:underline"
+                        onClick={() => navigate({ name: 'report', projectId, reportId: report.id })}
+                      >
+                        Week {report.weekNumber}
+                      </button>
+                      <span className="text-muted-foreground text-sm">·</span>
+                      <span className="text-sm text-muted-foreground">
+                        {formatDisplayDate(report.reportDate)}
+                      </span>
+                    </div>
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold text-white ${STATUS_COLORS[report.status]}`}
                     >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      size="icon-sm"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        navigate({ name: 'report', projectId, reportId: report.id })
-                      }}
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </Button>
+                      {STATUS_LABELS[report.status]}
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeleteReport(report.id)
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          navigate({ name: 'report', projectId, reportId: report.id })
+                        }}
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
         </TabsPanel>
@@ -504,5 +510,7 @@ export function ProjectPage({ store, navigate, projectId, initialTab = 'reports'
         />
       )}
     </Container>
+    <Toaster toasts={toasts} />
+    </>
   )
 }

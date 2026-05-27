@@ -68,6 +68,7 @@ export interface Project {
   timelineWindowStart: number
   reports: WeeklyReport[]
   floatProjectId?: number | null
+  pinned?: boolean
 }
 
 export type NavView =

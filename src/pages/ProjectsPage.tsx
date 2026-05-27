@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Button, Container, Input, PageHeader, Select, SelectItem } from '@aplo/ui'
-import { Plus, Calendar, FileText, Trash2, X, Database, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Plus, Calendar, FileText, Trash2, X, Database, Loader2, CheckCircle2, AlertCircle, Star, ChevronRight } from 'lucide-react'
 import { InputGroup } from '../components/InputGroup'
 import { MilestoneGanttEditor } from '../components/MilestoneGanttEditor'
 import type { NavView, Project, MilestoneDef, SprintLength } from '../types'
@@ -533,6 +533,8 @@ function DeleteConfirmModal({
   )
 }
 
+const PROJECT_SORT_LABELS = { desc: 'Newest', asc: 'Oldest' } as const
+
 export function ProjectsPage({ store, navigate }: Props) {
   const [pendingDelete, setPendingDelete] = useState<Project | null>(null)
   const [draftProject, setDraftProject] = useState<Project | null>(null)
@@ -541,6 +543,7 @@ export function ProjectsPage({ store, navigate }: Props) {
   const [draftErrors, setDraftErrors] = useState<
     Partial<Record<'name' | 'clientName' | 'description' | 'goal' | 'startDate' | 'endDate', string>>
   >({})
+  const [projectSortDirection, setProjectSortDirection] = useState<'asc' | 'desc'>('desc')
 
   const handleNew = () => {
     setDraftProject(createProject())
@@ -592,6 +595,20 @@ export function ProjectsPage({ store, navigate }: Props) {
     setPendingDelete(null)
   }
 
+  const handleTogglePin = (project: Project) => {
+    store.upsertProject({ ...project, pinned: !project.pinned })
+  }
+
+  const sortedProjects = [...store.projects].sort((a, b) => {
+    if (a.pinned && !b.pinned) return -1
+    if (!a.pinned && b.pinned) return 1
+    const dateA = a.startDate ?? ''
+    const dateB = b.startDate ?? ''
+    return projectSortDirection === 'desc'
+      ? dateB.localeCompare(dateA)
+      : dateA.localeCompare(dateB)
+  })
+
   return (
     <Container as="main" className="py-8">
       <div className="flex items-start justify-between mb-8">
@@ -624,46 +641,103 @@ export function ProjectsPage({ store, navigate }: Props) {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {store.projects.map((project) => (
-            <div
-              key={project.id}
-              onClick={() => navigate({ name: 'project', projectId: project.id })}
-              className="flex flex-row justify-between items-start h-auto p-6 text-left bg-surface hover:cursor-pointer rounded-xl border transition-all group"
-            >
-              <div className="flex-col min-w-0 flex-1">
-                <div className="flex w-full mb-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-base text-foreground truncate group-hover:text-primary transition-colors">
-                      {project.name}
-                    </p>
-                    {project.clientName && (
-                      <p className="text-sm text-muted-foreground mt-0.5 truncate">{project.clientName}</p>
+        <>
+          <div className="flex items-center gap-4 w-full mb-4">
+            <p className="text-sm text-muted-foreground">
+              {store.projects.length} project{store.projects.length !== 1 ? 's' : ''}
+            </p>
+            <div className="ml-auto flex items-center gap-3">
+              <span className="text-sm text-muted-foreground">Sort by</span>
+              <div className="w-36">
+                <Select
+                  label=""
+                  value={PROJECT_SORT_LABELS[projectSortDirection]}
+                  onValueChange={(value) =>
+                    value && setProjectSortDirection(value === PROJECT_SORT_LABELS.desc ? 'desc' : 'asc')
+                  }
+                  containerClassName="mb-0"
+                  placeholder="Sort"
+                >
+                  <SelectItem value={PROJECT_SORT_LABELS.desc}>{PROJECT_SORT_LABELS.desc}</SelectItem>
+                  <SelectItem value={PROJECT_SORT_LABELS.asc}>{PROJECT_SORT_LABELS.asc}</SelectItem>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-xl border border-border overflow-hidden">
+          <div className="divide-y divide-border">
+            {sortedProjects.map((project) => {
+              const initial = (project.clientName || project.name).charAt(0).toUpperCase()
+              return (
+                <div
+                  key={project.id}
+                  onClick={() => navigate({ name: 'project', projectId: project.id })}
+                  className="table-like-row flex items-center gap-4 px-4 py-4 cursor-pointer"
+                >
+                  {/* Avatar */}
+                  <div className="shrink-0 w-10 h-10 rounded-lg border border-border bg-muted flex items-center justify-center overflow-hidden">
+                    {project.clientLogo ? (
+                      <img src={project.clientLogo} alt={project.clientName} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-sm font-semibold text-muted-foreground">{initial}</span>
                     )}
                   </div>
+
+                  {/* Name + meta */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm text-foreground truncate">{project.name}</p>
+                    <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
+                      {project.clientName && (
+                        <span className="truncate">{project.clientName}</span>
+                      )}
+                      {project.clientName && <span>·</span>}
+                      <span className="flex items-center gap-1 shrink-0">
+                        <Calendar className="w-3 h-3" />
+                        {formatDisplayDate(project.startDate)} – {formatDisplayDate(project.endDate)}
+                      </span>
+                      <span className="flex items-center gap-1 shrink-0">
+                        <FileText className="w-3 h-3" />
+                        {project.reports.length} {project.reports.length === 1 ? 'report' : 'reports'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={(e) => { e.stopPropagation(); handleTogglePin(project) }}
+                      aria-label={project.pinned ? 'Unpin project' : 'Pin project'}
+                    >
+                      <Star
+                        className="w-4 h-4 transition-colors"
+                        style={project.pinned ? { fill: 'currentColor', color: 'var(--color-primary)' } : {}}
+                      />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={(e) => { e.stopPropagation(); setPendingDelete(project) }}
+                      aria-label="Delete project"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={(e) => { e.stopPropagation(); navigate({ name: 'project', projectId: project.id }) }}
+                      aria-label="Open project"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    {formatDisplayDate(project.startDate)} – {formatDisplayDate(project.endDate)}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <FileText className="w-3 h-3" />
-                    {project.reports.length} {project.reports.length === 1 ? 'report' : 'reports'}
-                  </span>
-                </div>
-              </div>
-     <Button
-                  variant="ghost"
-                  size="icon"
-             
-                  onClick={(e) => { e.stopPropagation(); setPendingDelete(project) }}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-            </div>
-          ))}
+              )
+            })}
+          </div>
         </div>
+        </>
       )}
 
       {pendingDelete && (

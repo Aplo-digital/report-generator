@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Button,
@@ -50,10 +50,13 @@ interface Props {
 
 type SectionId = 'status' | 'milestones' | 'insights' | 'achievements' | 'risks' | 'actions'
 type DragState = { startX: number; startWidth: number } | null
-
 const PANEL_STORAGE_KEY = 'report-editor-panels'
 const EDITOR_MIN_WIDTH = 440
 const EDITOR_MAX_WIDTH = 780
+const SLIDE_W = 1920
+const SLIDE_H = 1080
+const CANVAS_MIN_SCALE = 0.05
+const CANVAS_MAX_SCALE = 5
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 
@@ -251,84 +254,6 @@ function useAddItemShortcut(add: (focusNewItem?: boolean) => void) {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [add])
-}
-
-// ─── Scaled slide preview ─────────────────────────────────────────────────────
-
-function ScaledPreview({
-  children,
-  onClick,
-  zoom = 1,
-}: {
-  children: React.ReactNode
-  onClick?: () => void
-  zoom?: number
-}) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const [scale, setScale] = useState(0.5)
-
-  useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
-    const ro = new ResizeObserver(([entry]) => {
-      setScale(entry.contentRect.width / 1920)
-    })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
-
-  const renderedScale = scale * zoom
-
-  return (
-    <div ref={containerRef} style={{ width: '100%' }}>
-      <div
-        onClick={onClick}
-        style={{
-          width: `${1920 * renderedScale}px`,
-          height: `${1080 * renderedScale}px`,
-          overflow: 'hidden',
-          position: 'relative',
-          borderRadius: '6px',
-          boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
-          cursor: onClick ? 'zoom-in' : undefined,
-        }}
-      >
-        {/* Expand hint */}
-        {onClick && (
-          <div
-            style={{
-              position: 'absolute',
-              top: `${10 * renderedScale}px`,
-              right: `${10 * renderedScale}px`,
-              zIndex: 10,
-              background: 'rgba(0,0,0,0.45)',
-              borderRadius: '4px',
-              padding: `${4 * renderedScale}px ${6 * renderedScale}px`,
-              display: 'flex',
-              alignItems: 'center',
-              gap: `${4 * renderedScale}px`,
-              color: 'white',
-              fontSize: `${11 * renderedScale}px`,
-              pointerEvents: 'none',
-            }}
-          >
-            <Maximize2 style={{ width: `${12 * renderedScale}px`, height: `${12 * renderedScale}px` }} />
-            Preview
-          </div>
-        )}
-        <div
-          style={{
-            width: '1920px',
-            height: '1080px',
-            transform: `scale(${renderedScale})`,
-            transformOrigin: 'top left',
-          }}
-        >
-          {children}
-        </div>
-      </div>
-    </div>
-  )
 }
 
 // ─── Fullscreen lightbox ──────────────────────────────────────────────────────
@@ -800,8 +725,12 @@ export function ReportEditorPage({ store, navigate, projectId, reportId }: Props
   const [fullscreen, setFullscreen] = useState(false)
   const [activeSection, setActiveSection] = useState<SectionId>('status')
   const [{ editorWidth }, setPanelWidths] = useState(getStoredPanels)
-  const [previewZoom, setPreviewZoom] = useState(1)
   const [dragState, setDragState] = useState<DragState>(null)
+  const [canvasTransform, setCanvasTransform] = useState({ x: 0, y: 0, scale: 1 })
+  const [isPanning, setIsPanning] = useState(false)
+  const canvasRef = useRef<HTMLDivElement>(null)
+  const panRef = useRef<{ pointerId: number; startX: number; startY: number; startTx: number; startTy: number; didMove: boolean } | null>(null)
+  const suppressClickRef = useRef(false)
   const isFirst = useRef(true)
 
   // Only re-sync from store when navigating to a different report.
@@ -823,6 +752,43 @@ export function ReportEditorPage({ store, navigate, projectId, reportId }: Props
   useEffect(() => {
     window.localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify({ editorWidth }))
   }, [editorWidth])
+
+  // Fit slide to canvas on initial mount
+  useLayoutEffect(() => {
+    const el = canvasRef.current
+    if (!el) return
+    const { width: w, height: h } = el.getBoundingClientRect()
+    if (w <= 0 || h <= 0) return
+    const PADDING = 64
+    const scale = Math.min((w - PADDING * 2) / SLIDE_W, (h - PADDING * 2) / SLIDE_H)
+    setCanvasTransform({ x: (w - SLIDE_W * scale) / 2, y: (h - SLIDE_H * scale) / 2, scale })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Ctrl/Cmd+Wheel → zoom around cursor; plain wheel → pan
+  useEffect(() => {
+    const el = canvasRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      const rect = el.getBoundingClientRect()
+      if (e.ctrlKey || e.metaKey) {
+        const mx = e.clientX - rect.left
+        const my = e.clientY - rect.top
+        const factor = Math.pow(0.999, e.deltaY)
+        setCanvasTransform((prev) => {
+          const ns = clamp(prev.scale * factor, CANVAS_MIN_SCALE, CANVAS_MAX_SCALE)
+          const sd = ns / prev.scale
+          return { scale: ns, x: mx - (mx - prev.x) * sd, y: my - (my - prev.y) * sd }
+        })
+      } else {
+        const mul = e.deltaMode === 1 ? 20 : 1
+        setCanvasTransform((prev) => ({ ...prev, x: prev.x - e.deltaX * mul, y: prev.y - e.deltaY * mul }))
+      }
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [])
 
   useEffect(() => {
     if (!dragState) return
@@ -893,6 +859,75 @@ export function ReportEditorPage({ store, navigate, projectId, reportId }: Props
   const handleNavigateToReport = (targetReport: WeeklyReport | null) => {
     if (!targetReport) return
     navigate({ name: 'report', projectId, reportId: targetReport.id })
+  }
+
+  const zoomAroundCenter = (newScale: number | ((s: number) => number)) => {
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const cx = rect.width / 2
+    const cy = rect.height / 2
+    setCanvasTransform((prev) => {
+      const ns = clamp(
+        typeof newScale === 'function' ? newScale(prev.scale) : newScale,
+        CANVAS_MIN_SCALE,
+        CANVAS_MAX_SCALE,
+      )
+      const sd = ns / prev.scale
+      return { scale: ns, x: cx - (cx - prev.x) * sd, y: cy - (cy - prev.y) * sd }
+    })
+  }
+
+  const fitToView = () => {
+    const el = canvasRef.current
+    if (!el) return
+    const { width: w, height: h } = el.getBoundingClientRect()
+    if (w <= 0 || h <= 0) return
+    const PADDING = 64
+    const scale = Math.min((w - PADDING * 2) / SLIDE_W, (h - PADDING * 2) / SLIDE_H)
+    setCanvasTransform({ x: (w - SLIDE_W * scale) / 2, y: (h - SLIDE_H * scale) / 2, scale })
+  }
+
+  const handleCanvasPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return
+    const target = event.target as HTMLElement
+    if (target.closest('button, a, input, textarea, select, [role="button"]')) return
+    event.currentTarget.setPointerCapture(event.pointerId)
+    panRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startTx: canvasTransform.x,
+      startTy: canvasTransform.y,
+      didMove: false,
+    }
+    setIsPanning(true)
+  }
+
+  const handleCanvasPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const pan = panRef.current
+    if (!pan || pan.pointerId !== event.pointerId) return
+    const dx = event.clientX - pan.startX
+    const dy = event.clientY - pan.startY
+    if (!pan.didMove && Math.hypot(dx, dy) > 4) pan.didMove = true
+    if (pan.didMove) {
+      setCanvasTransform((prev) => ({ ...prev, x: pan.startTx + dx, y: pan.startTy + dy }))
+    }
+  }
+
+  const stopCanvasPan = (event: React.PointerEvent<HTMLDivElement>) => {
+    const pan = panRef.current
+    if (!pan || pan.pointerId !== event.pointerId) return
+    if (pan.didMove) suppressClickRef.current = true
+    event.currentTarget.releasePointerCapture(event.pointerId)
+    panRef.current = null
+    setIsPanning(false)
+  }
+
+  const handleCanvasClickCapture = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!suppressClickRef.current) return
+    suppressClickRef.current = false
+    event.preventDefault()
+    event.stopPropagation()
   }
 
   const handleMilestoneProgressChange = (milestoneId: string, value: number) => {
@@ -1072,34 +1107,39 @@ export function ReportEditorPage({ store, navigate, projectId, reportId }: Props
               <Button
                 variant="ghost"
                 size="icon-sm"
-                onClick={() => setPreviewZoom((current) => clamp(Number((current - 0.1).toFixed(2)), 0.7, 1.6))}
+                onClick={() => zoomAroundCenter((s) => s - 0.1)}
                 aria-label="Zoom out"
               >
                 <ZoomOut className="h-4 w-4" />
               </Button>
             </Tooltip>
-            <Tooltip label="Reset preview zoom" side="bottom">
+            <Tooltip label="Fit to view" side="bottom">
               <button
                 type="button"
-                onClick={() => setPreviewZoom(1)}
+                onClick={fitToView}
                 className="h-8 min-w-14 rounded-md px-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
-                {Math.round(previewZoom * 100)}%
+                {Math.round(canvasTransform.scale * 100)}%
               </button>
             </Tooltip>
             <Tooltip label="Zoom in" side="bottom">
               <Button
                 variant="ghost"
                 size="icon-sm"
-                onClick={() => setPreviewZoom((current) => clamp(Number((current + 0.1).toFixed(2)), 0.7, 1.6))}
+                onClick={() => zoomAroundCenter((s) => s + 0.1)}
                 aria-label="Zoom in"
               >
                 <ZoomIn className="h-4 w-4" />
               </Button>
             </Tooltip>
-            <Tooltip label="Fit width" side="bottom">
-              <Button variant="ghost" size="icon-sm" onClick={() => setPreviewZoom(1)} aria-label="Fit width">
+            <Tooltip label="Fit to view" side="bottom">
+              <Button variant="ghost" size="icon-sm" onClick={fitToView} aria-label="Fit to view">
                 <Scan className="h-4 w-4" />
+              </Button>
+            </Tooltip>
+            <Tooltip label="Fullscreen preview" side="bottom">
+              <Button variant="ghost" size="icon-sm" onClick={() => setFullscreen(true)} aria-label="Fullscreen preview">
+                <Maximize2 className="h-4 w-4" />
               </Button>
             </Tooltip>
             <Button variant="outline" size="sm" onClick={handlePrint}>
@@ -1109,11 +1149,30 @@ export function ReportEditorPage({ store, navigate, projectId, reportId }: Props
           </div>
         </div>
       </div>
-      <div className="flex-1 overflow-auto p-8 md:p-14">
-        <div className="mx-auto flex min-h-full w-full max-w-[1500px] items-start">
-          <ScaledPreview zoom={previewZoom} onClick={() => setFullscreen(true)}>
-            <ReportSlide project={project} report={report} />
-          </ScaledPreview>
+      <div
+        ref={canvasRef}
+        className={`relative flex-1 overflow-hidden select-none ${isPanning ? 'cursor-grabbing' : 'cursor-grab'}`}
+        onClickCapture={handleCanvasClickCapture}
+        onPointerDown={handleCanvasPointerDown}
+        onPointerMove={handleCanvasPointerMove}
+        onPointerUp={stopCanvasPan}
+        onPointerCancel={stopCanvasPan}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: `${SLIDE_W}px`,
+            height: `${SLIDE_H}px`,
+            transform: `translate(${canvasTransform.x}px, ${canvasTransform.y}px) scale(${canvasTransform.scale})`,
+            transformOrigin: '0 0',
+            borderRadius: '6px',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
+            overflow: 'hidden',
+          }}
+        >
+          <ReportSlide project={project} report={report} />
         </div>
       </div>
     </section>
