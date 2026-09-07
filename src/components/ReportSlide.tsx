@@ -276,7 +276,9 @@ function timelineMilestonesForWindow(
 
   const active = milestones.filter((milestone) => {
     const start = milestone.startWeek ?? 0
-    const end = milestone.endWeek ?? start
+    // endWeek is an exclusive upper bound (a milestone occupying only week 0
+    // has startWeek: 0, endWeek: 1), so the last active week is endWeek - 1.
+    const end = (milestone.endWeek ?? start + 1) - 1
     return start <= windowEnd && end >= windowStart
   })
 
@@ -372,15 +374,17 @@ function TimelineChart({ tasks, milestoneProgress, projectStartDate, currentSpri
       {/* Task rows */}
       {visibleTasks.map((task) => {
         const startWeek = task.startWeek ?? 0
-        const endWeek = task.endWeek ?? 1
+        // endWeek is an exclusive upper bound (a milestone occupying only week 0
+        // has startWeek: 0, endWeek: 1), so the last active week is endWeek - 1.
+        const lastWeek = (task.endWeek ?? startWeek + 1) - 1
         const progress = clampProgress(milestoneProgress[task.id] ?? 0)
         const taskLabel = task.name.trim() || 'Milestone'
         const isFallbackLabel = !task.name.trim()
         const windowEnd = windowStart + blocks.length - 1
-        const isVisibleInWindow = !(endWeek < windowStart || startWeek > windowEnd)
+        const isVisibleInWindow = !(lastWeek < windowStart || startWeek > windowEnd)
 
         const barStartIdx = Math.max(0, startWeek - windowStart)
-        const barEndIdx = Math.min(blocks.length - 1, endWeek - windowStart)
+        const barEndIdx = Math.min(blocks.length - 1, lastWeek - windowStart)
         const barSpan = barEndIdx - barStartIdx + 1
 
         return (
